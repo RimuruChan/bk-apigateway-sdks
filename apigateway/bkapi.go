@@ -226,6 +226,8 @@ func (c *Client) RevokePermissions(opts ...define.OperationOption) define.Operat
 
 // SyncAccessStrategy for bkapi resource sync_access_strategy
 // 同步策略
+//
+// Deprecated: access strategies have been replaced by plugins, and the api has been removed from apigw.
 func (c *Client) SyncAccessStrategy(opts ...define.OperationOption) define.Operation {
 	return c.BkApiClient.NewOperation(bkapi.OperationConfig{
 		Name:   "sync_access_strategy",
@@ -281,5 +283,125 @@ func (c *Client) UpdateMicroGatewayStatus(opts ...define.OperationOption) define
 		Name:   "update_micro_gateway_status",
 		Method: "PUT",
 		Path:   "/api/v1/edge-controller/micro-gateway/{instance_id}/status/",
+	}, opts...)
+}
+
+// V2OpenApplyGatewayPermission for bkapi resource v2_open_apply_gateway_permission
+// 申请网关API访问权限
+func (c *Client) V2OpenApplyGatewayPermission(opts ...define.OperationOption) define.Operation {
+	return c.BkApiClient.NewOperation(bkapi.OperationConfig{
+		Name:   "v2_open_apply_gateway_permission",
+		Method: "POST",
+		Path:   "/api/v2/open/gateways/{gateway_name}/permissions/apply/",
+	}, opts...)
+}
+
+// V2SyncAddRelatedApps for bkapi resource v2_sync_add_related_apps
+// 添加网关关联应用
+func (c *Client) V2SyncAddRelatedApps(opts ...define.OperationOption) define.Operation {
+	return c.BkApiClient.NewOperation(bkapi.OperationConfig{
+		Name:   "v2_sync_add_related_apps",
+		Method: "POST",
+		Path:   "/api/v2/sync/gateways/{gateway_name}/related-apps/",
+	}, opts...)
+}
+
+// V2SyncCreateResourceVersion for bkapi resource v2_sync_create_resource_version
+// 创建资源版本
+func (c *Client) V2SyncCreateResourceVersion(opts ...define.OperationOption) define.Operation {
+	return c.BkApiClient.NewOperation(bkapi.OperationConfig{
+		Name:   "v2_sync_create_resource_version",
+		Method: "POST",
+		Path:   "/api/v2/sync/gateways/{gateway_name}/resource_versions/",
+	}, opts...)
+}
+
+// V2SyncGateway for bkapi resource v2_sync_gateway
+// 同步网关
+func (c *Client) V2SyncGateway(opts ...define.OperationOption) define.Operation {
+	return c.BkApiClient.NewOperation(bkapi.OperationConfig{
+		Name:   "v2_sync_gateway",
+		Method: "POST",
+		Path:   "/api/v2/sync/gateways/{gateway_name}/",
+	}, opts...)
+}
+
+// V2SyncGetGatewayPublicKey for bkapi resource v2_sync_get_gateway_public_key_new
+// 获取网关公钥
+func (c *Client) V2SyncGetGatewayPublicKey(opts ...define.OperationOption) define.Operation {
+	return c.BkApiClient.NewOperation(bkapi.OperationConfig{
+		Name:   "v2_sync_get_gateway_public_key_new",
+		Method: "GET",
+		Path:   "/api/v2/sync/gateways/{gateway_name}/public_key/",
+	}, opts...)
+}
+
+// V2SyncGetResourceVersionLatest for bkapi resource v2_sync_get_resource_version_latest
+// 获取网关最新版本
+func (c *Client) V2SyncGetResourceVersionLatest(opts ...define.OperationOption) define.Operation {
+	return c.BkApiClient.NewOperation(bkapi.OperationConfig{
+		Name:   "v2_sync_get_resource_version_latest",
+		Method: "GET",
+		Path:   "/api/v2/sync/gateways/{gateway_name}/resource_versions/latest/",
+	}, opts...)
+}
+
+// V2SyncGrantPermission for bkapi resource v2_sync_grant_permission
+// 网关为应用主动授权
+func (c *Client) V2SyncGrantPermission(opts ...define.OperationOption) define.Operation {
+	return c.BkApiClient.NewOperation(bkapi.OperationConfig{
+		Name:   "v2_sync_grant_permission",
+		Method: "POST",
+		Path:   "/api/v2/sync/gateways/{gateway_name}/permissions/grant/",
+	}, opts...)
+}
+
+// V2SyncListResourceVersions for bkapi resource v2_sync_list_resource_versions
+// 查询资源版本列表
+func (c *Client) V2SyncListResourceVersions(opts ...define.OperationOption) define.Operation {
+	return c.BkApiClient.NewOperation(bkapi.OperationConfig{
+		Name:   "v2_sync_list_resource_versions",
+		Method: "GET",
+		Path:   "/api/v2/sync/gateways/{gateway_name}/resource_versions/",
+	}, opts...)
+}
+
+// V2SyncRelease for bkapi resource v2_sync_release
+// 发布版本
+func (c *Client) V2SyncRelease(opts ...define.OperationOption) define.Operation {
+	return c.BkApiClient.NewOperation(bkapi.OperationConfig{
+		Name:   "v2_sync_release",
+		Method: "POST",
+		Path:   "/api/v2/sync/gateways/{gateway_name}/resource_versions/release/",
+	}, opts...)
+}
+
+// V2SyncResourceDoc for bkapi resource v2_sync_resource_doc
+// 通过文档归档文件导入资源文档
+func (c *Client) V2SyncResourceDoc(opts ...define.OperationOption) define.Operation {
+	return c.BkApiClient.NewOperation(bkapi.OperationConfig{
+		Name:   "v2_sync_resource_doc",
+		Method: "POST",
+		Path:   "/api/v2/sync/gateways/{gateway_name}/resource-docs/",
+	}, opts...)
+}
+
+// V2SyncResources for bkapi resource v2_sync_resources
+// 同步资源
+func (c *Client) V2SyncResources(opts ...define.OperationOption) define.Operation {
+	return c.BkApiClient.NewOperation(bkapi.OperationConfig{
+		Name:   "v2_sync_resources",
+		Method: "POST",
+		Path:   "/api/v2/sync/gateways/{gateway_name}/resources/",
+	}, opts...)
+}
+
+// V2SyncStages for bkapi resource v2_sync_stages
+// 同步环境
+func (c *Client) V2SyncStages(opts ...define.OperationOption) define.Operation {
+	return c.BkApiClient.NewOperation(bkapi.OperationConfig{
+		Name:   "v2_sync_stages",
+		Method: "POST",
+		Path:   "/api/v2/sync/gateways/{gateway_name}/stages/",
 	}, opts...)
 }

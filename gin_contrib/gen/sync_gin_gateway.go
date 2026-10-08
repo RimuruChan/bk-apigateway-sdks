@@ -58,11 +58,14 @@ func SyncGinGateway(baseDir string, apiGatewayName string, config *model.APIConf
 	}
 	log.Printf("call sync_apigw_resources with resources:%s\n", resourceFile)
 
-	result, err = defaultManager.SyncResourcesConfig(map[string]interface{}{
-		"content":  string(resourceFile),
-		"delete":   delete,
-		"language": config.ResourceDocs.Language,
-	})
+	syncResourcesArgs := map[string]interface{}{
+		"content": string(resourceFile),
+		"delete":  delete,
+	}
+	if config.ResourceDocs.Language != "" {
+		syncResourcesArgs["doc_language"] = config.ResourceDocs.Language
+	}
+	result, err = defaultManager.SyncResourcesConfig(syncResourcesArgs)
 	if err != nil {
 		log.Fatalf("syncing gateway resource config: err:%v", err)
 		return
@@ -88,20 +91,20 @@ func SyncGinGateway(baseDir string, apiGatewayName string, config *model.APIConf
 	}
 
 	// 生成资源版本
-	versionInfo, err := defaultManager.GetLatestResourceVersion()
+	// apigw-manager(python) 会持久化资源签名，在版本号一致且资源无变更时复用最新版本；
+	// 这里没有可持久化的签名，所以每次都创建新版本
+	newVersion := config.Release.Version
+	if newVersion == "" {
+		newVersion = "0.0.1"
+	}
+	exists, err := defaultManager.ResourceVersionExists(newVersion)
 	if err != nil {
-		log.Fatalf("get  gateway resource version: err:%v", err)
+		log.Fatalf("check gateway resource version: err:%v", err)
 		return
 	}
-	fmt.Printf("gateway resource version:%+v\n", versionInfo)
-
-	newVersion := config.Release.Version
-
-	if len(versionInfo) > 0 {
-		oldVersion := versionInfo["version"].(string)
-		if strings.Contains(oldVersion, newVersion) {
-			newVersion = fmt.Sprintf("%s+%s", newVersion, time.Now().Format("20060102150405"))
-		}
+	if exists {
+		publicVersion := strings.SplitN(newVersion, "+", 2)[0]
+		newVersion = fmt.Sprintf("%s+%s", publicVersion, time.Now().Format("20060102150405"))
 	}
 	result, err = defaultManager.CreateResourceVersion(newVersion, config.Release.Comment)
 	if err != nil {
@@ -111,7 +114,7 @@ func SyncGinGateway(baseDir string, apiGatewayName string, config *model.APIConf
 	log.Printf("create gateway resource version success, result:%v\n", result)
 	// 发布资源版本
 	if !config.Release.NoPub {
-		result, err = defaultManager.Release(newVersion)
+		result, err = defaultManager.ReleaseWithComment(newVersion, config.Release.Comment)
 		if err != nil {
 			log.Fatalf("release gateway resource version: err:%v", err)
 			return

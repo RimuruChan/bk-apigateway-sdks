@@ -37,6 +37,7 @@ definition.yaml 中可以使用 Django 模块语法引用和渲染变量，内�
 - `plugin_configs`：定义网关插件配置；
 - `apply_permissions`：申请网关权限；
 - `grant_permissions`：应用主动授权；
+- `related_apps`：网关关联应用；
 - `resource_version`：资源版本信息；
 - `release`：定义发布内容；
 - `resource_docs`：定义资源文档；

@@ -54,14 +54,13 @@ var _ = Describe("Publickey", func() {
 	It("should cache the public key", func() {
 		count := 0
 		gock.New(config.Endpoint).
-			Get("/api/v1/apis/testing/public_key/").
+			Get("/api/v2/sync/gateways/testing/public_key/").
 			AddMatcher(func(_ *http.Request, _ *gock.Request) (bool, error) {
 				count++
 				return true, nil
 			}).
 			Reply(200).
 			JSON(map[string]interface{}{
-				"code": 0,
 				"data": map[string]interface{}{
 					"public_key": "public_key",
 				},
