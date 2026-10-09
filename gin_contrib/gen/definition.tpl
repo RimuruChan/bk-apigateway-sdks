@@ -106,11 +106,11 @@ stages:
   {{- if or .GrantPermissions.GatewayApps .GrantPermissions.ResourceApps}}
 grant_permissions:
   {{- range .GrantPermissions.GatewayApps}}
-  - bk_app_code: "{{.}}"
-    grant_dimension: "api"
+  - target_app_code: "{{.}}"
+    grant_dimension: "gateway"
   {{- end}}
   {{- range $app_code, $resource_names := .GrantPermissions.ResourceApps}}
-  - bk_app_code: "{{$app_code}}"
+  - target_app_code: "{{$app_code}}"
     grant_dimension: "resource"
     resource_names:
       {{- range $resource_names}}

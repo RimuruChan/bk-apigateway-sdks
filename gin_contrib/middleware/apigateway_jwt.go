@@ -17,9 +17,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/TencentBlueKing/bk-apigateway-sdks/core/bkapi"
-	"github.com/TencentBlueKing/bk-apigateway-sdks/gin_contrib/util"
-	"github.com/TencentBlueKing/bk-apigateway-sdks/manager"
+	"github.com/TencentBlueKing/bk-apigateway-sdks/v2/apigateway"
+	"github.com/TencentBlueKing/bk-apigateway-sdks/v2/gin_contrib/util"
+	"github.com/TencentBlueKing/bk-apigateway-sdks/v2/manager"
 )
 
 var (
@@ -33,7 +33,7 @@ const (
 
 func init() {
 	once.Do(func() {
-		config := bkapi.ClientConfig{}
+		config := apigateway.ConfigFromEnv()
 		publicMemoryCache = manager.NewDefaultPublicKeyMemoryCache(config)
 	})
 }

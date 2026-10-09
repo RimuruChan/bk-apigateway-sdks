@@ -17,13 +17,13 @@ import (
 
 	pongo2 "github.com/flosch/pongo2/v5"
 
-	"github.com/TencentBlueKing/bk-apigateway-sdks/core/bkapi"
+	"github.com/TencentBlueKing/bk-apigateway-sdks/v2/apigateway"
 )
 
 // DefintionContext for definition template engine
 type DefintionContext struct {
 	apiName string
-	config  *bkapi.ClientConfig
+	config  *apigateway.Config
 }
 
 func (c *DefintionContext) settings() map[string]interface{} {
@@ -65,7 +65,7 @@ func (c *DefintionContext) Context(data interface{}) pongo2.Context {
 }
 
 // NewDefinitionContext return new definition context
-func NewDefinitionContext(apiName string, config *bkapi.ClientConfig) *DefintionContext {
+func NewDefinitionContext(apiName string, config *apigateway.Config) *DefintionContext {
 	return &DefintionContext{
 		apiName: apiName,
 		config:  config,

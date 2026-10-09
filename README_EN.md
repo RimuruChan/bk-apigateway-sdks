@@ -1,5 +1,5 @@
 # bk-apigateway-sdks
-[简体中文](README_EN.md)
+[简体中文](README.md)
 
 ## Introduction
 This repository contains the SDKs and tools for the Blueking API Gateway, simplifying the development process of developers who want to integrate with the Blueking API Gateway.
@@ -7,7 +7,6 @@ This repository contains the SDKs and tools for the Blueking API Gateway, simpli
 ## Overview
 - [manager](manager)：Gateway management toolset
 - [apigateway](apigateway)：Blueking API Gateway client SDK
-- [core](core)：Blueking API Gateway client core library
 - [gin_contrib](gin_contrib): A gateway programming framework based on gin
 ## BlueKing Community
 

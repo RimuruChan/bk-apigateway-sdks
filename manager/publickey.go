@@ -12,6 +12,7 @@
 package manager
 
 import (
+	"context"
 	"math/rand"
 	"time"
 
@@ -19,7 +20,7 @@ import (
 	"github.com/TencentBlueKing/gopkg/cache/memory"
 	"github.com/pkg/errors"
 
-	"github.com/TencentBlueKing/bk-apigateway-sdks/core/bkapi"
+	"github.com/TencentBlueKing/bk-apigateway-sdks/v2/apigateway"
 )
 
 // PublicKeyProvider is the interface for public key provider.
@@ -51,27 +52,26 @@ type PublicKeyMemoryCache struct {
 
 // ProvidePublicKey gets public key from cache.
 func (c *PublicKeyMemoryCache) ProvidePublicKey(apiName string) (string, error) {
-	return c.cache.GetString(cache.NewStringKey(apiName))
+	return c.cache.GetString(context.Background(), cache.NewStringKey(apiName))
 }
 
 // NewPublicKeyMemoryCache creates a memory cache for public key.
 func NewPublicKeyMemoryCache(
-	config bkapi.ClientConfig,
+	config apigateway.Config,
 	expiration time.Duration,
-	clientFactory func(apiName string, config bkapi.ClientConfig) (*Manager, error),
+	clientFactory func(apiName string, config apigateway.Config) (*Manager, error),
 ) *PublicKeyMemoryCache {
 	return &PublicKeyMemoryCache{
 		cache: memory.NewCache(
 			"public-key",
-			false,
-			func(key cache.Key) (interface{}, error) {
+			func(ctx context.Context, key cache.Key) (interface{}, error) {
 				apiName := key.Key()
 				manager, err := clientFactory(apiName, config)
 				if err != nil {
 					return nil, errors.WithMessagef(err, "failed to create manager for %s", apiName)
 				}
 
-				publicKey, err := manager.GetPublicKeyString()
+				publicKey, err := manager.GetPublicKeyString(ctx)
 				if err != nil {
 					return nil, errors.WithMessagef(err, "failed to get public key for %s", apiName)
 				}
@@ -87,6 +87,6 @@ func NewPublicKeyMemoryCache(
 }
 
 // NewDefaultPublicKeyMemoryCache creates a default memory cache for public key.
-func NewDefaultPublicKeyMemoryCache(config bkapi.ClientConfig) *PublicKeyMemoryCache {
+func NewDefaultPublicKeyMemoryCache(config apigateway.Config) *PublicKeyMemoryCache {
 	return NewPublicKeyMemoryCache(config, 12*time.Hour, NewDefaultManager)
 }

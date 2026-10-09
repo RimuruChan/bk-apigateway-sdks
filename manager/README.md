@@ -33,8 +33,8 @@ definition.yaml 中可以使用 Django 模块语法引用和渲染变量，内�
 
 推荐在一个文件中统一进行定义，用命名空间来区分不同资源间的定义：
 - `apigateway`：定义网关基本信息；
-- `stage`：定义环境信息；
-- `plugin_configs`：定义网关插件配置；
+- `stages`：定义环境信息（列表）；
+- `stages[].plugin_configs`：定义环境插件配置；
 - `apply_permissions`：申请网关权限；
 - `grant_permissions`：应用主动授权；
 - `related_apps`：网关关联应用；
@@ -42,7 +42,34 @@ definition.yaml 中可以使用 Django 模块语法引用和渲染变量，内�
 - `release`：定义发布内容；
 - `resource_docs`：定义资源文档；
 
+权限定义示例：
+
+```yaml
+grant_permissions:
+  - target_app_code: my-app
+    grant_dimension: gateway
+apply_permissions:
+  - gateway_name: another-gateway
+    grant_dimension: resource
+    resource_names: [list_items]
+```
+
+`apply_permissions` 未指定 `target_app_code` 时为当前应用，`applicant` 默认同 `target_app_code`。
+
 ### 使用示例
+```go
+mgr, err := manager.NewManagerFrom("my-gateway", apigateway.ConfigFromEnv(), "definition.yaml")
+if err != nil {
+	return err
+}
+ctx := context.Background()
+if _, err := mgr.SyncBasicInfo(ctx); err != nil {
+	return err
+}
+```
+
+从内存中的定义创建时，使用 `manager.NewManager("my-gateway", config, manager.NewDefinition(data))`。
+
 具体使用可以参考：[SyncGinGateway.go](../gin_contrib/gen/sync_gin_gateway.go)
 
 

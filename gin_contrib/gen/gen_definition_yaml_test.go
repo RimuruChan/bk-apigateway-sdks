@@ -12,10 +12,13 @@
 package gen
 
 import (
+	"reflect"
 	"testing"
 
-	"github.com/TencentBlueKing/bk-apigateway-sdks/gin_contrib/example/router"
-	"github.com/TencentBlueKing/bk-apigateway-sdks/gin_contrib/model"
+	"gopkg.in/yaml.v3"
+
+	"github.com/TencentBlueKing/bk-apigateway-sdks/v2/gin_contrib/example/router"
+	"github.com/TencentBlueKing/bk-apigateway-sdks/v2/gin_contrib/model"
 )
 
 func TestGenDefinitionConfig(t *testing.T) {
@@ -69,7 +72,19 @@ func TestGenDefinitionConfig(t *testing.T) {
 	}
 	// 生成定义配置
 	definitionConfig := GenDefinitionYaml(config, "../example/docs/swagger.json", router.New())
-	t.Log(definitionConfig)
+	var parsed struct {
+		Permissions []map[string]any `yaml:"grant_permissions"`
+	}
+	if err := yaml.Unmarshal([]byte(definitionConfig), &parsed); err != nil {
+		t.Fatal(err)
+	}
+	expected := []map[string]any{
+		{"target_app_code": "app1", "grant_dimension": "gateway"},
+		{"target_app_code": "app2", "grant_dimension": "resource", "resource_names": []any{"res1", "res2"}},
+	}
+	if !reflect.DeepEqual(parsed.Permissions, expected) {
+		t.Fatalf("invalid v2 permissions: %#v", parsed.Permissions)
+	}
 }
 
 func TestGenDefinitionConfigWithMcpServer(t *testing.T) {
@@ -122,7 +137,7 @@ func TestGenDefinitionConfigWithMcpServer(t *testing.T) {
 					TargetAppCodes:            []string{"app1", "app2"},
 					ResourceNames:             []string{"update_product_set"},
 					ToolNames:                 []string{"update_product"},
-					Oauth2PublicClientEnabled:  false,
+					Oauth2PublicClientEnabled: false,
 					RawResponseEnabled:        false,
 					CategoryNames:             []string{"Official", "Automation"},
 				},

@@ -15,7 +15,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	manager "github.com/TencentBlueKing/bk-apigateway-sdks/manager"
+	manager "github.com/TencentBlueKing/bk-apigateway-sdks/v2/manager"
 )
 
 var _ = Describe("Definition", func() {

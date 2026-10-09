@@ -3,7 +3,7 @@ package gen
 import (
 	"testing"
 
-	"github.com/TencentBlueKing/bk-apigateway-sdks/gin_contrib/example/router"
+	"github.com/TencentBlueKing/bk-apigateway-sdks/v2/gin_contrib/example/router"
 )
 
 func TestGenResourceYamlFromSwaggerJson(t *testing.T) {

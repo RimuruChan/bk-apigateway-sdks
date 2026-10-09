@@ -14,7 +14,9 @@ package gen
 import (
 	"archive/zip"
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -25,8 +27,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/TencentBlueKing/bk-apigateway-sdks/gin_contrib/example/router"
-	"github.com/TencentBlueKing/bk-apigateway-sdks/gin_contrib/model"
+	"github.com/TencentBlueKing/bk-apigateway-sdks/v2/apigateway"
+	"github.com/TencentBlueKing/bk-apigateway-sdks/v2/gin_contrib/example/router"
+	"github.com/TencentBlueKing/bk-apigateway-sdks/v2/gin_contrib/model"
 )
 
 func TestSyncGinGateway(t *testing.T) {
@@ -201,48 +204,11 @@ func TestSyncGinGatewayWithV2Apis(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			gateway := &mockV2Gateway{versionExists: c.versionExists}
-			server := httptest.NewServer(gateway)
-			defer server.Close()
-			t.Setenv("BK_API_URL_TMPL", server.URL+"/api/{api_name}")
-			t.Setenv("BK_APP_CODE", "my-app")
-			t.Setenv("BK_APP_SECRET", "secret")
+			baseDir, config := setupSyncGinGateway(t, gateway)
 
-			baseDir := t.TempDir()
-			docsDir := filepath.Join(baseDir, "docs")
-			if err := os.MkdirAll(filepath.Join(docsDir, "zh"), 0o755); err != nil {
+			if err := SyncGinGateway(context.Background(), baseDir, "testing", config, true); err != nil {
 				t.Fatal(err)
 			}
-			docFile := filepath.Join(docsDir, "zh", "get_pet.md")
-			if err := os.WriteFile(docFile, []byte("# get pet"), 0o644); err != nil {
-				t.Fatal(err)
-			}
-			definition := strings.Join([]string{
-				"spec_version: 2",
-				"apigateway:",
-				"  description: testing",
-				"stages:",
-				"  - name: prod",
-				"    mcp_servers:",
-				"      - name: mcp",
-				"grant_permissions:",
-				"  - bk_app_code: app1",
-				"    grant_dimension: api",
-				"resource_docs:",
-				"  basedir: " + docsDir,
-			}, "\n")
-			if err := os.WriteFile(filepath.Join(baseDir, "definition.yaml"), []byte(definition), 0o644); err != nil {
-				t.Fatal(err)
-			}
-			resourcesFile := filepath.Join(baseDir, "resources.yaml")
-			if err := os.WriteFile(resourcesFile, []byte("swagger: '2.0'"), 0o644); err != nil {
-				t.Fatal(err)
-			}
-
-			SyncGinGateway(baseDir, "testing", &model.APIConfig{
-				Release:      model.ReleaseConfig{Version: "1.0.0+prod", Comment: "release comment"},
-				Stage:        &model.StageConfig{Name: "prod", EnableMcpServers: true},
-				ResourceDocs: model.ResourceDocConfig{BaseDir: docsDir, Language: "zh"},
-			}, true)
 
 			resources := gateway.find(t, http.MethodPost, "/resources/")[0].Body
 			if resources["doc_language"] != "zh" || resources["language"] != nil || resources["delete"] != true {
@@ -277,5 +243,64 @@ func TestSyncGinGatewayWithV2Apis(t *testing.T) {
 
 			gateway.find(t, http.MethodPost, "/stages/prod/mcp-servers/")
 		})
+	}
+}
+
+// setupSyncGinGateway starts the gateway, and writes the definition and resources to the returned dir.
+func setupSyncGinGateway(t *testing.T, gateway *mockV2Gateway) (string, *model.APIConfig) {
+	t.Helper()
+	server := httptest.NewServer(gateway)
+	t.Cleanup(server.Close)
+	t.Setenv("BK_API_URL_TMPL", server.URL+"/api/{api_name}")
+	t.Setenv("BK_APP_CODE", "my-app")
+	t.Setenv("BK_APP_SECRET", "secret")
+
+	baseDir := t.TempDir()
+	docsDir := filepath.Join(baseDir, "docs")
+	if err := os.MkdirAll(filepath.Join(docsDir, "zh"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	docFile := filepath.Join(docsDir, "zh", "get_pet.md")
+	if err := os.WriteFile(docFile, []byte("# get pet"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	definition := strings.Join([]string{
+		"spec_version: 2",
+		"apigateway:",
+		"  description: testing",
+		"stages:",
+		"  - name: prod",
+		"    mcp_servers:",
+		"      - name: mcp",
+		"grant_permissions:",
+		"  - target_app_code: app1",
+		"    grant_dimension: gateway",
+		"resource_docs:",
+		"  basedir: " + docsDir,
+	}, "\n")
+	if err := os.WriteFile(filepath.Join(baseDir, "definition.yaml"), []byte(definition), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	resourcesFile := filepath.Join(baseDir, "resources.yaml")
+	if err := os.WriteFile(resourcesFile, []byte("swagger: '2.0'"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	return baseDir, &model.APIConfig{
+		Release:      model.ReleaseConfig{Version: "1.0.0+prod", Comment: "release comment"},
+		Stage:        &model.StageConfig{Name: "prod", EnableMcpServers: true},
+		ResourceDocs: model.ResourceDocConfig{BaseDir: docsDir, Language: "zh"},
+	}
+}
+
+func TestSyncGinGatewayError(t *testing.T) {
+	baseDir, config := setupSyncGinGateway(t, &mockV2Gateway{})
+
+	// the mock gateway responds NOT_FOUND to the gateways other than testing
+	err := SyncGinGateway(context.Background(), baseDir, "unknown", config, true)
+
+	var apiErr *apigateway.Error
+	if !errors.As(err, &apiErr) || apiErr.Code != "NOT_FOUND" {
+		t.Fatalf("error = %v, want NOT_FOUND", err)
 	}
 }
