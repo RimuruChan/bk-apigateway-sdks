@@ -15,9 +15,9 @@ init:
 	## 安装 gofumpt 二进制
 	GOBIN=$(LOCALBIN) go install mvdan.cc/gofumpt@v0.6.0
 	## 安装 goimports-reviser 二进制
-	GOBIN=$(LOCALBIN) go install github.com/incu6us/goimports-reviser/v3@v3.6.5
+	GOBIN=$(LOCALBIN) go install github.com/incu6us/goimports-reviser/v3@v3.13.2
 	## 安装 golines 二进制
-	GOBIN=$(LOCALBIN) go install github.com/segmentio/golines@v0.12.2
+	GOBIN=$(LOCALBIN) go install github.com/segmentio/golines@v0.13.0
 
 .PHONY: fmt
 fmt:
