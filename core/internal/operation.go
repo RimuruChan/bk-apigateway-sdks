@@ -16,7 +16,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 
@@ -181,7 +180,7 @@ func (op *Operation) callResultProvider(response *gentleman.Response) error {
 	rawResponse := response.RawResponse
 
 	// it should read the response body to avoid the resource leak
-	rawResponse.Body = ioutil.NopCloser(bytes.NewReader(response.Bytes()))
+	rawResponse.Body = io.NopCloser(bytes.NewReader(response.Bytes()))
 	rawResponse.Close = true
 
 	if op.resultProvider == nil {

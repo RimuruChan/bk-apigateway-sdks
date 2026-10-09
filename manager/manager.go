@@ -13,7 +13,6 @@ package manager
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -106,7 +105,7 @@ func (m *Manager) requestData(operation define.Operation) (interface{}, error) {
 
 // LoadDefinition will load the definition from the file.
 func (m *Manager) LoadDefinition(path string) error {
-	rendered, err := ioutil.ReadFile(path)
+	rendered, err := os.ReadFile(path)
 	if err != nil {
 		return errors.Wrapf(err, "failed to read %s", path)
 	}

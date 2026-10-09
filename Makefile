@@ -11,7 +11,7 @@ GOIMPORTS ?=$(LOCALBIN)/goimports-reviser
 .PHONY: init
 init:
 	## 安装 golangci-lint 二进制
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(LOCALBIN) v2.1.2
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(LOCALBIN) v2.14.0
 	## 安装 gofumpt 二进制
 	GOBIN=$(LOCALBIN) go install mvdan.cc/gofumpt@v0.6.0
 	## 安装 goimports-reviser 二进制
