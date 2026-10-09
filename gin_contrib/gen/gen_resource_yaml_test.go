@@ -7,7 +7,7 @@ import (
 )
 
 func TestGenResourceYamlFromSwaggerJson(t *testing.T) {
-	GenResourceYamlFromSwaggerJson("../example/docs/swagger.json", router.New())
+	GenResourceYamlFromSwaggerJson("../example/docs/swagger.json", router.New(), "")
 	//`paths:
 	//  /testapi/pet/get-pet-by-id/{pet_id}/:
 	//    get:
