@@ -13,6 +13,7 @@ package middleware
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 
@@ -24,13 +25,17 @@ const (
 	BkGatewayJWTHeaderKey = "X-Bkapi-Jwt"
 )
 
-// GatewayJWTAuthMiddleware 网关JWT鉴权中间件: 用于校验网关JWT,会进行应用、用户认证结构校验，需要使用网关
-// RegisterBkAPIGatewayRoute 或者 RegisterBkAPIGatewayRouteWithGroup 注册路由
+// 所有中间件共用一份公钥缓存，第一次创建中间件时才读取环境变量
+var publicKeyCache = sync.OnceValue(func() *manager.PublicKeyMemoryCache {
+	return manager.NewDefaultPublicKeyMemoryCache(manager.ConfigFromEnv())
+})
+
+// GatewayJWTAuthMiddleware 校验请求头中的网关 JWT，并检查应用和用户是否通过认证。
+// 路由需要用 RegisterBkAPIGatewayRoute 或 RegisterBkAPIGatewayRouteWithGroup 注册。
 //
-// 中间件在创建时通过 manager.ConfigFromEnv 读取配置，并缓存从网关获取的公钥，因此需要在加载环境变量之后创建，
-// 并在多个路由间复用。
+// 请在环境变量加载之后再调用，例如在 main 里读完 .env 之后。
 func GatewayJWTAuthMiddleware() func(c *gin.Context) {
-	parser := manager.NewRsaJwtTokenParser(manager.NewDefaultPublicKeyMemoryCache(manager.ConfigFromEnv()))
+	parser := manager.NewRsaJwtTokenParser(publicKeyCache())
 	return func(c *gin.Context) {
 		signedToken := c.GetHeader(BkGatewayJWTHeaderKey)
 		if signedToken == "" {

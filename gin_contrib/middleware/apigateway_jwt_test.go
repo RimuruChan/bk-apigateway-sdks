@@ -50,12 +50,15 @@ func TestGatewayJWTAuthMiddleware(t *testing.T) {
 
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	util.RegisterBkAPIGatewayRoute(router, http.MethodGet, "/ping", model.APIGatewayResourceConfig{},
-		middleware.GatewayJWTAuthMiddleware(), func(c *gin.Context) { c.Status(http.StatusNoContent) })
+	// a middleware is created for each route, as in the example router
+	for _, path := range []string{"/ping", "/pong"} {
+		util.RegisterBkAPIGatewayRoute(router, http.MethodGet, path, model.APIGatewayResourceConfig{},
+			middleware.GatewayJWTAuthMiddleware(), func(c *gin.Context) { c.Status(http.StatusNoContent) })
+	}
 
 	token := signToken(t, key)
-	for range 2 {
-		req := httptest.NewRequest(http.MethodGet, "/ping", nil)
+	for _, path := range []string{"/ping", "/pong", "/ping"} {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
 		req.Header.Set(middleware.BkGatewayJWTHeaderKey, token)
 		res := httptest.NewRecorder()
 		router.ServeHTTP(res, req)

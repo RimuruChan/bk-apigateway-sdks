@@ -145,7 +145,7 @@ log.Println(claims.ApiName, claims.App.AppCode, claims.User.Username)
 - `NewPublicKeySimpleProvider`：使用预先配置的公钥，key 为网关名。
 - 实现 `PublicKeyProvider` 接口，自定义获取方式。
 
-使用 gin 时可以直接使用 gin_contrib 中的 [GatewayJWTAuthMiddleware](../gin_contrib/middleware/apigateway_jwt.go)。它在创建时读取环境变量，需要在加载环境变量之后创建。
+使用 gin 时可以直接使用 gin_contrib 中的 [GatewayJWTAuthMiddleware](../gin_contrib/middleware/apigateway_jwt.go)。它在第一次创建时读取环境变量，请在环境变量加载之后再创建。多次创建共用同一份公钥缓存。
 
 ## 错误处理
 
