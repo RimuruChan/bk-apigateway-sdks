@@ -20,7 +20,7 @@ import (
 	"github.com/TencentBlueKing/gopkg/cache/memory"
 	"github.com/pkg/errors"
 
-	"github.com/TencentBlueKing/bk-apigateway-sdks/v2/apigateway"
+	"github.com/TencentBlueKing/bk-apigateway-sdks/v2/bkapi"
 )
 
 // PublicKeyProvider is the interface for public key provider.
@@ -57,14 +57,14 @@ func (c *PublicKeyMemoryCache) ProvidePublicKey(apiName string) (string, error) 
 
 // NewPublicKeyMemoryCache creates a memory cache for public key.
 func NewPublicKeyMemoryCache(
-	config apigateway.Config,
+	config bkapi.Config,
 	expiration time.Duration,
-	clientFactory func(apiName string, config apigateway.Config) (*Manager, error),
+	clientFactory func(apiName string, config bkapi.Config) (*Manager, error),
 ) *PublicKeyMemoryCache {
 	return &PublicKeyMemoryCache{
 		cache: memory.NewCache(
 			"public-key",
-			func(ctx context.Context, key cache.Key) (interface{}, error) {
+			func(ctx context.Context, key cache.Key) (any, error) {
 				apiName := key.Key()
 				manager, err := clientFactory(apiName, config)
 				if err != nil {
@@ -87,6 +87,6 @@ func NewPublicKeyMemoryCache(
 }
 
 // NewDefaultPublicKeyMemoryCache creates a default memory cache for public key.
-func NewDefaultPublicKeyMemoryCache(config apigateway.Config) *PublicKeyMemoryCache {
+func NewDefaultPublicKeyMemoryCache(config bkapi.Config) *PublicKeyMemoryCache {
 	return NewPublicKeyMemoryCache(config, 12*time.Hour, NewDefaultManager)
 }

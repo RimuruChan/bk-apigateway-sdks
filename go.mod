@@ -4,7 +4,6 @@ go 1.26.0
 
 require (
 	github.com/TencentBlueKing/gopkg v1.3.0
-	github.com/flosch/pongo2/v5 v5.0.0
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-openapi/spec v1.0.1
 	github.com/go-playground/validator/v10 v10.30.5

@@ -20,7 +20,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/TencentBlueKing/bk-apigateway-sdks/v2/apigateway"
 	"github.com/TencentBlueKing/bk-apigateway-sdks/v2/gin_contrib/model"
 	"github.com/TencentBlueKing/bk-apigateway-sdks/v2/manager"
 )
@@ -35,7 +34,7 @@ func SyncGinGateway(
 ) error {
 	defaultManager, err := manager.NewManagerFrom(
 		gatewayName,
-		apigateway.ConfigFromEnv(),
+		manager.ConfigFromEnv(),
 		filepath.Join(baseDir, "definition.yaml"),
 	)
 	if err != nil {

@@ -16,12 +16,14 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	gock "gopkg.in/h2non/gock.v1"
 
-	"github.com/TencentBlueKing/bk-apigateway-sdks/v2/apigateway"
+	"github.com/TencentBlueKing/bk-apigateway-sdks/v2/bkapi"
 	manager "github.com/TencentBlueKing/bk-apigateway-sdks/v2/manager"
 )
 
@@ -30,7 +32,7 @@ var _ = Describe("Manager", func() {
 		ctx      = context.Background()
 		endpoint = "http://example.com"
 		mgr      *manager.Manager
-		bodies   []map[string]interface{}
+		bodies   []map[string]any
 	)
 
 	captureBody := func(req *http.Request, _ *gock.Request) (bool, error) {
@@ -41,7 +43,7 @@ var _ = Describe("Manager", func() {
 		if err != nil {
 			return false, err
 		}
-		body := map[string]interface{}{}
+		body := map[string]any{}
 		if len(content) > 0 {
 			if err := json.Unmarshal(content, &body); err != nil {
 				return false, err
@@ -51,10 +53,10 @@ var _ = Describe("Manager", func() {
 		return true, nil
 	}
 
-	newManager := func(definition map[string]interface{}) *manager.Manager {
+	newManager := func(definition map[string]any) *manager.Manager {
 		m, err := manager.NewManager(
 			"testing",
-			apigateway.Config{Endpoint: endpoint, AppCode: "my-app", Transport: gock.NewTransport()},
+			bkapi.Config{Endpoint: endpoint, AppCode: "my-app", Transport: gock.NewTransport()},
 			manager.NewDefinition(definition),
 		)
 		Expect(err).To(BeNil())
@@ -63,22 +65,22 @@ var _ = Describe("Manager", func() {
 
 	BeforeEach(func() {
 		bodies = nil
-		mgr = newManager(map[string]interface{}{
-			"stages": []interface{}{
-				map[string]interface{}{"name": "prod"},
+		mgr = newManager(map[string]any{
+			"stages": []any{
+				map[string]any{"name": "prod"},
 			},
-			"grant_permissions": []interface{}{
-				map[string]interface{}{"target_app_code": "app1", "grant_dimension": "gateway"},
-				map[string]interface{}{
+			"grant_permissions": []any{
+				map[string]any{"target_app_code": "app1", "grant_dimension": "gateway"},
+				map[string]any{
 					"target_app_code": "app2",
 					"grant_dimension": "resource",
-					"resource_names":  []interface{}{"r1"},
+					"resource_names":  []any{"r1"},
 				},
 			},
-			"apply_permissions": []interface{}{
-				map[string]interface{}{"gateway_name": "other-gateway"},
+			"apply_permissions": []any{
+				map[string]any{"gateway_name": "other-gateway"},
 			},
-			"related_apps": []interface{}{"app1"},
+			"related_apps": []any{"app1"},
 		})
 	})
 
@@ -92,23 +94,23 @@ var _ = Describe("Manager", func() {
 		gock.New(endpoint).
 			Get("/api/v2/sync/gateways/testing/resource_versions/latest/").
 			Reply(200).
-			JSON(map[string]interface{}{"data": map[string]interface{}{"version": "1.0.0+prod"}})
+			JSON(map[string]any{"data": map[string]any{"version": "1.0.0+prod"}})
 
 		result, err := mgr.GetLatestResourceVersion(ctx)
 		Expect(err).To(BeNil())
-		Expect(result).To(Equal(map[string]interface{}{"version": "1.0.0+prod"}))
+		Expect(result).To(Equal(map[string]any{"version": "1.0.0+prod"}))
 	})
 
 	It("should return the error of a v2 error response", func() {
 		gock.New(endpoint).
 			Post("/api/v2/sync/gateways/testing/resource_versions/").
 			Reply(400).
-			JSON(map[string]interface{}{
-				"error": map[string]interface{}{"code": "INVALID_ARGUMENT", "message": "invalid version"},
+			JSON(map[string]any{
+				"error": map[string]any{"code": "INVALID_ARGUMENT", "message": "invalid version"},
 			})
 
 		_, err := mgr.CreateResourceVersion(ctx, "1.0.0+prod+20261008", "")
-		Expect(err).To(BeAssignableToTypeOf(&apigateway.Error{}))
+		Expect(err).To(BeAssignableToTypeOf(&bkapi.Error{}))
 		Expect(err.Error()).To(ContainSubstring("INVALID_ARGUMENT"))
 		Expect(err.Error()).To(ContainSubstring("invalid version"))
 	})
@@ -117,10 +119,10 @@ var _ = Describe("Manager", func() {
 		gock.New(endpoint).
 			Post("/api/v2/sync/gateways/testing/resource_versions/release/").
 			Reply(500).
-			JSON(map[string]interface{}{"data": nil})
+			JSON(map[string]any{"data": nil})
 
 		_, err := mgr.Release(ctx, "1.0.0+prod", "")
-		Expect(err).To(BeAssignableToTypeOf(&apigateway.Error{}))
+		Expect(err).To(BeAssignableToTypeOf(&bkapi.Error{}))
 		Expect(err.Error()).To(ContainSubstring("500"))
 	})
 
@@ -128,9 +130,9 @@ var _ = Describe("Manager", func() {
 		gock.New(endpoint).
 			Post("/api/v2/sync/gateways/testing/stages/prod/mcp-servers/").
 			Reply(200).
-			JSON(map[string]interface{}{
-				"data": []interface{}{
-					map[string]interface{}{"id": 1, "name": "testing-prod-mcp", "action": "created"},
+			JSON(map[string]any{
+				"data": []any{
+					map[string]any{"id": 1, "name": "testing-prod-mcp", "action": "created"},
 				},
 			})
 
@@ -144,12 +146,12 @@ var _ = Describe("Manager", func() {
 			Get("/api/v2/sync/gateways/testing/resource_versions/").
 			MatchParam("version", `^1\.0\.0\+prod$`).
 			Reply(200).
-			JSON(map[string]interface{}{"data": map[string]interface{}{"count": 1, "results": []interface{}{}}})
+			JSON(map[string]any{"data": map[string]any{"count": 1, "results": []any{}}})
 		gock.New(endpoint).
 			Get("/api/v2/sync/gateways/testing/resource_versions/").
 			MatchParam("version", `^1\.0\.1\+prod$`).
 			Reply(200).
-			JSON(map[string]interface{}{"data": map[string]interface{}{"count": 0, "results": []interface{}{}}})
+			JSON(map[string]any{"data": map[string]any{"count": 0, "results": []any{}}})
 
 		exists, err := mgr.ResourceVersionExists(ctx, "1.0.0+prod")
 		Expect(err).To(BeNil())
@@ -166,12 +168,12 @@ var _ = Describe("Manager", func() {
 			Times(2).
 			AddMatcher(captureBody).
 			Reply(201).
-			JSON(map[string]interface{}{"data": nil})
+			JSON(map[string]any{"data": nil})
 
 		Expect(mgr.GrantPermissions(ctx)).To(Succeed())
-		Expect(bodies).To(Equal([]map[string]interface{}{
+		Expect(bodies).To(Equal([]map[string]any{
 			{"target_app_code": "app1", "grant_dimension": "gateway"},
-			{"target_app_code": "app2", "grant_dimension": "resource", "resource_names": []interface{}{"r1"}},
+			{"target_app_code": "app2", "grant_dimension": "resource", "resource_names": []any{"r1"}},
 		}))
 	})
 
@@ -180,12 +182,12 @@ var _ = Describe("Manager", func() {
 			Post("/api/v2/open/gateways/other-gateway/permissions/apply/").
 			AddMatcher(captureBody).
 			Reply(200).
-			JSON(map[string]interface{}{"data": map[string]interface{}{"record_id": 1}})
+			JSON(map[string]any{"data": map[string]any{"record_id": 1}})
 
 		result, err := mgr.ApplyPermissions(ctx)
 		Expect(err).To(BeNil())
-		Expect(result["result_0"]).To(Equal(map[string]interface{}{"record_id": float64(1)}))
-		Expect(bodies).To(Equal([]map[string]interface{}{
+		Expect(result["result_0"]).To(Equal(map[string]any{"record_id": float64(1)}))
+		Expect(bodies).To(Equal([]map[string]any{
 			{"target_app_code": "my-app", "applicant": "my-app", "grant_dimension": "gateway"},
 		}))
 	})
@@ -195,17 +197,89 @@ var _ = Describe("Manager", func() {
 			Post("/api/v2/sync/gateways/testing/related-apps/").
 			AddMatcher(captureBody).
 			Reply(201).
-			JSON(map[string]interface{}{"data": nil})
+			JSON(map[string]any{"data": nil})
 
 		Expect(mgr.AddRelatedApps(ctx)).To(Succeed())
-		Expect(bodies).To(Equal([]map[string]interface{}{
-			{"related_app_codes": []interface{}{"app1"}},
+		Expect(bodies).To(Equal([]map[string]any{
+			{"related_app_codes": []any{"app1"}},
 		}))
 	})
 
 	It("should skip adding related apps when there are none", func() {
 		// gock fails the request if one is sent
-		Expect(newManager(map[string]interface{}{"related_apps": nil}).AddRelatedApps(ctx)).To(Succeed())
+		Expect(newManager(map[string]any{"related_apps": nil}).AddRelatedApps(ctx)).To(Succeed())
+	})
+
+	It("should sync the basic info, stages and resources", func() {
+		mgr = newManager(map[string]any{
+			"apigateway": map[string]any{"description": "my gateway"},
+			"stages":     []any{map[string]any{"name": "prod"}},
+		})
+		gock.New(endpoint).Post("/api/v2/sync/gateways/testing/").AddMatcher(captureBody).
+			Reply(200).JSON(map[string]any{"data": map[string]any{"id": 1}})
+		gock.New(endpoint).Post("/api/v2/sync/gateways/testing/stages/").AddMatcher(captureBody).
+			Reply(200).JSON(map[string]any{"data": map[string]any{"id": 2}})
+		gock.New(endpoint).Post("/api/v2/sync/gateways/testing/resources/").AddMatcher(captureBody).
+			Reply(200).JSON(map[string]any{"data": map[string]any{"added": []any{}}})
+
+		info, err := mgr.SyncBasicInfo(ctx)
+		Expect(err).To(BeNil())
+		Expect(info).To(Equal(map[string]any{"id": float64(1)}))
+
+		stages, err := mgr.SyncStagesConfig(ctx)
+		Expect(err).To(BeNil())
+		Expect(stages).To(Equal(map[string]any{"prod": map[string]any{"id": float64(2)}}))
+
+		_, err = mgr.SyncResourcesConfig(ctx, map[string]any{"content": "paths: {}", "delete": true})
+		Expect(err).To(BeNil())
+
+		Expect(bodies).To(Equal([]map[string]any{
+			{"description": "my gateway"},
+			{"name": "prod"},
+			{"content": "paths: {}", "delete": true},
+		}))
+	})
+
+	It("should upload the resource docs", func() {
+		dir := GinkgoT().TempDir()
+		Expect(os.WriteFile(filepath.Join(dir, "doc.md"), []byte("# doc"), 0o600)).To(Succeed())
+		mgr = newManager(map[string]any{
+			"resource_docs": map[string]any{"basedir": dir},
+		})
+
+		var contentType string
+		gock.New(endpoint).
+			Post("/api/v2/sync/gateways/testing/resource-docs/").
+			AddMatcher(func(req *http.Request, _ *gock.Request) (bool, error) {
+				contentType = req.Header.Get("Content-Type")
+				return true, nil
+			}).
+			Reply(200).
+			JSON(map[string]any{"data": nil})
+
+		Expect(mgr.SyncResourceDocByArchive(ctx)).To(Succeed())
+		Expect(contentType).To(HavePrefix("multipart/form-data"))
+	})
+
+	It("should get the public key", func() {
+		gock.New(endpoint).
+			Get("/api/v2/sync/gateways/testing/public_key/").
+			Reply(200).
+			JSON(map[string]any{"data": map[string]any{"public_key": "my-key"}})
+
+		publicKey, err := mgr.GetPublicKeyString(ctx)
+		Expect(err).To(BeNil())
+		Expect(publicKey).To(Equal("my-key"))
+	})
+
+	It("should return the error of a response that is not json", func() {
+		gock.New(endpoint).
+			Get("/api/v2/sync/gateways/testing/resource_versions/latest/").
+			Reply(200).
+			BodyString("<html>login</html>")
+
+		_, err := mgr.GetLatestResourceVersion(ctx)
+		Expect(err).To(MatchError(ContainSubstring("decode response")))
 	})
 
 	It("should release with the comment", func() {
@@ -213,14 +287,14 @@ var _ = Describe("Manager", func() {
 			Post("/api/v2/sync/gateways/testing/resource_versions/release/").
 			AddMatcher(captureBody).
 			Reply(200).
-			JSON(map[string]interface{}{
-				"data": map[string]interface{}{"version": "1.0.0+prod", "stage_names": []interface{}{"prod"}},
+			JSON(map[string]any{
+				"data": map[string]any{"version": "1.0.0+prod", "stage_names": []any{"prod"}},
 			})
 
 		_, err := mgr.Release(ctx, "1.0.0+prod", "release comment")
 		Expect(err).To(BeNil())
-		Expect(bodies).To(Equal([]map[string]interface{}{
-			{"version": "1.0.0+prod", "stage_names": []interface{}{"prod"}, "comment": "release comment"},
+		Expect(bodies).To(Equal([]map[string]any{
+			{"version": "1.0.0+prod", "stage_names": []any{"prod"}, "comment": "release comment"},
 		}))
 	})
 })

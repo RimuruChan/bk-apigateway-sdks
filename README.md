@@ -6,7 +6,7 @@
 
 ## 总览
 - [manager](manager)：网关管理工具集
-- [apigateway](apigateway)：网关客户端 SDK
+- [bkapi](bkapi)：网关 API 调用客户端，处理认证、响应、状态码、日志等公共逻辑
 - [gin_contrib](gin_contrib)：基于gin的网关编程框架
 
 

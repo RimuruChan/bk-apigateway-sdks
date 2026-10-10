@@ -23,10 +23,10 @@ var _ = Describe("Definition", func() {
 		var definition *manager.Definition
 
 		BeforeEach(func() {
-			definition = manager.NewDefinition(map[string]interface{}{
-				"sub": map[string]interface{}{
+			definition = manager.NewDefinition(map[string]any{
+				"sub": map[string]any{
 					"name": "testing",
-					"value": map[string]interface{}{
+					"value": map[string]any{
 						"foo": "bar",
 					},
 				},

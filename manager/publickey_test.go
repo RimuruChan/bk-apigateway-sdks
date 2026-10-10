@@ -19,21 +19,21 @@ import (
 	. "github.com/onsi/gomega"
 	gock "gopkg.in/h2non/gock.v1"
 
-	"github.com/TencentBlueKing/bk-apigateway-sdks/v2/apigateway"
+	"github.com/TencentBlueKing/bk-apigateway-sdks/v2/bkapi"
 	manager "github.com/TencentBlueKing/bk-apigateway-sdks/v2/manager"
 )
 
 var _ = Describe("Publickey", func() {
 	var (
-		config   apigateway.Config
+		config   bkapi.Config
 		provider *manager.PublicKeyMemoryCache
 	)
 
 	BeforeEach(func() {
-		config = apigateway.Config{Endpoint: "http://example.com", Transport: gock.NewTransport()}
+		config = bkapi.Config{Endpoint: "http://example.com", Transport: gock.NewTransport()}
 		provider = manager.NewPublicKeyMemoryCache(
 			config, time.Hour,
-			func(apiName string, config apigateway.Config) (*manager.Manager, error) {
+			func(apiName string, config bkapi.Config) (*manager.Manager, error) {
 				return manager.NewManager(
 					apiName,
 					config,
@@ -52,8 +52,8 @@ var _ = Describe("Publickey", func() {
 				return true, nil
 			}).
 			Reply(200).
-			JSON(map[string]interface{}{
-				"data": map[string]interface{}{
+			JSON(map[string]any{
+				"data": map[string]any{
 					"public_key": "public_key",
 				},
 			})

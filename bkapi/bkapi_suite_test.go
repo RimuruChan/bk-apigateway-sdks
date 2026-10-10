@@ -9,30 +9,16 @@
  * specific language governing permissions and limitations under the License.
  */
 
-package util
+package bkapi_test
 
 import (
-	"encoding/json"
-	"strings"
+	"testing"
 
-	yaml "gopkg.in/yaml.v2"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
-func JsonToYAML(jsonData []byte) ([]byte, error) {
-	var jsonObj any
-	if err := json.Unmarshal(jsonData, &jsonObj); err != nil {
-		return nil, err
-	}
-	return yaml.Marshal(jsonObj)
-}
-
-// ConvertExpressPathToSwagger 将 /api/:id 转换为 Swagger 风格 的路径 /api/{id}
-func ConvertExpressPathToSwagger(path string) string {
-	segments := strings.Split(path, "/")
-	for i, seg := range segments {
-		if strings.HasPrefix(seg, ":") && len(seg) > 1 {
-			segments[i] = "{" + seg[1:] + "}"
-		}
-	}
-	return strings.Join(segments, "/")
+func TestBkapi(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Bkapi Suite")
 }

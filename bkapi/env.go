@@ -9,7 +9,7 @@
  * specific language governing permissions and limitations under the License.
  */
 
-package apigateway
+package bkapi
 
 import (
 	"cmp"
@@ -17,19 +17,19 @@ import (
 	"strings"
 )
 
-// ConfigFromEnv returns the Config of an app deployed on BlueKing PaaS, which calls the prod stage of bk-apigateway.
+// ConfigFromEnv returns the Config of an app deployed on BlueKing PaaS, which calls the stage of the gateway.
 //
 //   - Endpoint: BK_API_URL_TMPL, such as http://bkapi.example.com/api/{api_name}/, where {api_name} or
-//     {gateway_name} is the gateway name
+//     {gateway_name} is replaced by gatewayName, followed by stageName
 //   - AppCode: BK_APP_CODE, BKPAAS_APP_ID or APP_CODE
 //   - AppSecret: BK_APP_SECRET, BKPAAS_APP_SECRET or SECRET_KEY
 //   - TenantID: BKPAAS_APP_TENANT_ID, which is empty for global tenant apps that belong to the system tenant,
 //     or BK_APP_TENANT_ID for apps not deployed on PaaS
-func ConfigFromEnv() Config {
+func ConfigFromEnv(gatewayName, stageName string) Config {
 	var endpoint string
 	if tmpl := os.Getenv("BK_API_URL_TMPL"); tmpl != "" {
-		endpoint = strings.NewReplacer("{api_name}", "bk-apigateway", "{gateway_name}", "bk-apigateway").Replace(tmpl)
-		endpoint = strings.TrimSuffix(endpoint, "/") + "/prod"
+		endpoint = strings.NewReplacer("{api_name}", gatewayName, "{gateway_name}", gatewayName).Replace(tmpl)
+		endpoint = strings.TrimSuffix(endpoint, "/") + "/" + stageName
 	}
 
 	tenantID, ok := os.LookupEnv("BKPAAS_APP_TENANT_ID")

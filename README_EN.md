@@ -6,7 +6,7 @@ This repository contains the SDKs and tools for the Blueking API Gateway, simpli
 
 ## Overview
 - [manager](manager)：Gateway management toolset
-- [apigateway](apigateway)：Blueking API Gateway client SDK
+- [bkapi](bkapi): a thin client to call the APIs through Blueking API Gateway, handling authentication, responses, status codes and logging
 - [gin_contrib](gin_contrib): A gateway programming framework based on gin
 ## BlueKing Community
 

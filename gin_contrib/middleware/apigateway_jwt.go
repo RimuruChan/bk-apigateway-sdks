@@ -17,7 +17,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/TencentBlueKing/bk-apigateway-sdks/v2/apigateway"
 	"github.com/TencentBlueKing/bk-apigateway-sdks/v2/gin_contrib/util"
 	"github.com/TencentBlueKing/bk-apigateway-sdks/v2/manager"
 )
@@ -33,7 +32,7 @@ const (
 
 func init() {
 	once.Do(func() {
-		config := apigateway.ConfigFromEnv()
+		config := manager.ConfigFromEnv()
 		publicMemoryCache = manager.NewDefaultPublicKeyMemoryCache(config)
 	})
 }

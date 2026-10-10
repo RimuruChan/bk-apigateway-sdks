@@ -9,18 +9,20 @@
  * specific language governing permissions and limitations under the License.
  */
 
-package apigateway
+package bkapi
 
 import (
 	"cmp"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 
-	gentleman "gopkg.in/h2non/gentleman.v2"
+	"gopkg.in/h2non/gentleman.v2/context"
+	"gopkg.in/h2non/gentleman.v2/plugin"
 )
 
-// Error is returned when bk-apigateway responds with a non-2xx status.
+// Error is returned when the API responds with a non-2xx status.
 type Error struct {
 	StatusCode int
 	// Code and Message describe the error, such as INVALID_ARGUMENT. They come from the error in the
@@ -28,32 +30,43 @@ type Error struct {
 	// rejects the request, such as when the app fails to authenticate.
 	Code    string
 	Message string
-	// RequestID identifies the request in the logs of bk-apigateway.
+	// RequestID identifies the request in the logs of the gateway.
 	RequestID string
 }
 
 func (e *Error) Error() string {
-	return fmt.Sprintf("apigateway: status=%d code=%s message=%q request_id=%s",
+	return fmt.Sprintf("bkapi: status=%d code=%s message=%q request_id=%s",
 		e.StatusCode, e.Code, e.Message, e.RequestID)
 }
 
-func newError(res *gentleman.Response, body []byte) *Error {
-	var payload struct {
-		Error struct {
-			Code    string `json:"code"`
-			Message string `json:"message"`
-		} `json:"error"`
-	}
-	_ = json.Unmarshal(body, &payload) // the body may not be json, then the headers are used
+// checkStatus returns the plugin that turns a non-2xx response into an *Error.
+func checkStatus() plugin.Plugin {
+	return plugin.NewResponsePlugin(func(ctx *context.Context, h context.Handler) {
+		res := ctx.Response
+		if res.StatusCode >= 200 && res.StatusCode < 300 {
+			h.Next(ctx)
+			return
+		}
 
-	return &Error{
-		StatusCode: res.StatusCode,
-		Code:       cmp.Or(payload.Error.Code, res.Header.Get("X-Bkapi-Error-Code")),
-		Message: cmp.Or(
-			payload.Error.Message,
-			res.Header.Get("X-Bkapi-Error-Message"),
-			http.StatusText(res.StatusCode),
-		),
-		RequestID: res.Header.Get("X-Bkapi-Request-Id"),
-	}
+		var body struct {
+			Error struct {
+				Code    string `json:"code"`
+				Message string `json:"message"`
+			} `json:"error"`
+		}
+		data, _ := io.ReadAll(res.Body)
+		_ = res.Body.Close()
+		_ = json.Unmarshal(data, &body) // the body may not be json, then the headers are used
+
+		h.Error(ctx, &Error{
+			StatusCode: res.StatusCode,
+			Code:       cmp.Or(body.Error.Code, res.Header.Get("X-Bkapi-Error-Code")),
+			Message: cmp.Or(
+				body.Error.Message,
+				res.Header.Get("X-Bkapi-Error-Message"),
+				http.StatusText(res.StatusCode),
+			),
+			RequestID: res.Header.Get("X-Bkapi-Request-Id"),
+		})
+	})
 }

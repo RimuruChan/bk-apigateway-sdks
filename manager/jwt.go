@@ -48,7 +48,7 @@ type RsaJwtTokenParser struct {
 // Parse the jwt token.
 func (p *RsaJwtTokenParser) Parse(tokenString string) (ApigatewayJwtClaims, error) {
 	var claims ApigatewayJwtClaims
-	token, err := jwt.ParseWithClaims(tokenString, &claims, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &claims, func(token *jwt.Token) (any, error) {
 		kid, ok := token.Header["kid"]
 		if !ok {
 			return "", errors.Wrapf(ErrKidInvalid, "kid is not found in jwt header")

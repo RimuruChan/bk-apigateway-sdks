@@ -27,7 +27,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/TencentBlueKing/bk-apigateway-sdks/v2/apigateway"
+	"github.com/TencentBlueKing/bk-apigateway-sdks/v2/bkapi"
 	"github.com/TencentBlueKing/bk-apigateway-sdks/v2/gin_contrib/example/router"
 	"github.com/TencentBlueKing/bk-apigateway-sdks/v2/gin_contrib/model"
 )
@@ -103,7 +103,7 @@ type recordedRequest struct {
 	Method   string
 	Path     string
 	Query    string
-	Body     map[string]interface{}
+	Body     map[string]any
 	ZipFiles []string
 }
 
@@ -113,10 +113,10 @@ type mockV2Gateway struct {
 	versionExists bool
 }
 
-func (g *mockV2Gateway) reply(w http.ResponseWriter, status int, data interface{}) {
+func (g *mockV2Gateway) reply(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{"data": data})
+	_ = json.NewEncoder(w).Encode(map[string]any{"data": data})
 }
 
 func (g *mockV2Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -141,20 +141,20 @@ func (g *mockV2Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	prefix := "/api/bk-apigateway/prod/api/v2/sync/gateways/testing/"
 	if !strings.HasPrefix(r.URL.Path, prefix) {
 		w.WriteHeader(http.StatusNotFound)
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{
-			"error": map[string]interface{}{"code": "NOT_FOUND", "message": r.URL.Path},
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"error": map[string]any{"code": "NOT_FOUND", "message": r.URL.Path},
 		})
 		return
 	}
 
 	switch sub := strings.TrimPrefix(r.URL.Path, prefix); {
 	case sub == "":
-		g.reply(w, http.StatusOK, map[string]interface{}{"id": 1, "name": "testing"})
+		g.reply(w, http.StatusOK, map[string]any{"id": 1, "name": "testing"})
 	case sub == "stages/":
-		g.reply(w, http.StatusOK, map[string]interface{}{"id": 1, "name": "prod"})
+		g.reply(w, http.StatusOK, map[string]any{"id": 1, "name": "prod"})
 	case sub == "resources/":
-		g.reply(w, http.StatusOK, map[string]interface{}{
-			"added": []interface{}{}, "updated": []interface{}{}, "deleted": []interface{}{},
+		g.reply(w, http.StatusOK, map[string]any{
+			"added": []any{}, "updated": []any{}, "deleted": []any{},
 		})
 	case sub == "permissions/grant/", sub == "resource-docs/":
 		g.reply(w, http.StatusCreated, nil)
@@ -163,15 +163,15 @@ func (g *mockV2Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if g.versionExists {
 			count = 1
 		}
-		g.reply(w, http.StatusOK, map[string]interface{}{"count": count, "results": []interface{}{}})
+		g.reply(w, http.StatusOK, map[string]any{"count": count, "results": []any{}})
 	case sub == "resource_versions/":
-		g.reply(w, http.StatusOK, map[string]interface{}{"id": 1, "version": record.Body["version"]})
+		g.reply(w, http.StatusOK, map[string]any{"id": 1, "version": record.Body["version"]})
 	case sub == "resource_versions/release/":
-		g.reply(w, http.StatusOK, map[string]interface{}{
+		g.reply(w, http.StatusOK, map[string]any{
 			"version": record.Body["version"], "stage_names": record.Body["stage_names"],
 		})
 	case sub == "stages/prod/mcp-servers/":
-		g.reply(w, http.StatusOK, []interface{}{map[string]interface{}{"id": 1, "name": "mcp", "action": "created"}})
+		g.reply(w, http.StatusOK, []any{map[string]any{"id": 1, "name": "mcp", "action": "created"}})
 	default:
 		w.WriteHeader(http.StatusNotFound)
 	}
@@ -299,7 +299,7 @@ func TestSyncGinGatewayError(t *testing.T) {
 	// the mock gateway responds NOT_FOUND to the gateways other than testing
 	err := SyncGinGateway(context.Background(), baseDir, "unknown", config, true)
 
-	var apiErr *apigateway.Error
+	var apiErr *bkapi.Error
 	if !errors.As(err, &apiErr) || apiErr.Code != "NOT_FOUND" {
 		t.Fatalf("error = %v, want NOT_FOUND", err)
 	}
