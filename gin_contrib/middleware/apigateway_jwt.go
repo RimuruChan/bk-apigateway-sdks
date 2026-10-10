@@ -13,7 +13,6 @@ package middleware
 
 import (
 	"fmt"
-	"sync"
 
 	"github.com/gin-gonic/gin"
 
@@ -21,25 +20,17 @@ import (
 	"github.com/TencentBlueKing/bk-apigateway-sdks/v2/manager"
 )
 
-var (
-	once              sync.Once
-	publicMemoryCache *manager.PublicKeyMemoryCache
-)
-
 const (
 	BkGatewayJWTHeaderKey = "X-Bkapi-Jwt"
 )
 
-func init() {
-	once.Do(func() {
-		config := manager.ConfigFromEnv()
-		publicMemoryCache = manager.NewDefaultPublicKeyMemoryCache(config)
-	})
-}
-
 // GatewayJWTAuthMiddleware 网关JWT鉴权中间件: 用于校验网关JWT,会进行应用、用户认证结构校验，需要使用网关
 // RegisterBkAPIGatewayRoute 或者 RegisterBkAPIGatewayRouteWithGroup 注册路由
+//
+// 中间件在创建时通过 manager.ConfigFromEnv 读取配置，并缓存从网关获取的公钥，因此需要在加载环境变量之后创建，
+// 并在多个路由间复用。
 func GatewayJWTAuthMiddleware() func(c *gin.Context) {
+	parser := manager.NewRsaJwtTokenParser(manager.NewDefaultPublicKeyMemoryCache(manager.ConfigFromEnv()))
 	return func(c *gin.Context) {
 		signedToken := c.GetHeader(BkGatewayJWTHeaderKey)
 		if signedToken == "" {
@@ -47,8 +38,6 @@ func GatewayJWTAuthMiddleware() func(c *gin.Context) {
 			c.Abort()
 			return
 		}
-		// get public key
-		parser := manager.NewRsaJwtTokenParser(publicMemoryCache)
 		claims, err := parser.Parse(signedToken)
 		if err != nil {
 			util.UnauthorizedJSONResponse(c, "token is invalid")

@@ -202,6 +202,53 @@ var _ = Describe("Client", func() {
 		})
 	})
 
+	Context("Slow error response", func() {
+		var (
+			endpoint string
+			started  chan struct{} // closed when the server starts to send the body of /slow
+		)
+
+		BeforeEach(func() {
+			started = make(chan struct{})
+			release := make(chan struct{})
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path != "/slow" {
+					return
+				}
+				w.WriteHeader(http.StatusServiceUnavailable)
+				w.(http.Flusher).Flush()
+				close(started)
+				select {
+				case <-release:
+				case <-r.Context().Done():
+				}
+			}))
+			// the cleanups run in reverse order, so the handler is released before the server is closed
+			DeferCleanup(server.Close)
+			DeferCleanup(func() { close(release) })
+			endpoint = server.URL
+		})
+
+		It("should not block the other requests of the client", func() {
+			c := newClient(bkapi.Config{Endpoint: endpoint})
+			go func() { _, _ = c.Get().AddPath("/slow").Send() }()
+			Eventually(started).Should(BeClosed())
+
+			done := make(chan error)
+			go func() {
+				_, err := c.Get().AddPath("/fast").Send()
+				done <- err
+			}()
+			Eventually(done, time.Second).Should(Receive(BeNil()))
+		})
+
+		It("should stop reading the body when the request times out", func() {
+			c := newClient(bkapi.Config{Endpoint: endpoint, Timeout: 50 * time.Millisecond})
+			_, err := c.Get().AddPath("/slow").Send()
+			Expect(err).To(MatchError(context.DeadlineExceeded))
+		})
+	})
+
 	It("should send the requests through the transport", func() {
 		var used bool
 		transport := roundTripFunc(func(r *http.Request) (*http.Response, error) {
@@ -242,6 +289,31 @@ var _ = Describe("Client", func() {
 		Entry("client error", 400, "WARN"),
 		Entry("server error", 500, "ERROR"),
 	)
+
+	It("should log the error of the gateway", func() {
+		var logs bytes.Buffer
+		c := newClient(bkapi.Config{
+			Endpoint: serve(403, http.Header{"X-Bkapi-Error-Code": {"APP_NO_PERMISSION"}}, ``),
+			Logger:   slog.New(slog.NewTextHandler(&logs, nil)),
+		})
+		_, err := c.Get().Send()
+		Expect(err).To(HaveOccurred())
+		Expect(logs.String()).To(ContainSubstring("error_code=APP_NO_PERMISSION"))
+	})
+
+	It("should not log the errors without a response", func() {
+		var logs bytes.Buffer
+		c := newClient(bkapi.Config{
+			Endpoint: "http://example.com",
+			Logger:   slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug})),
+			Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+				return nil, errors.New("connection refused")
+			}),
+		})
+		_, err := c.Get().SetQuery("token", "my-token").Send()
+		Expect(err).To(MatchError(ContainSubstring("connection refused")))
+		Expect(logs.String()).To(BeEmpty())
+	})
 
 	It("should be safe for concurrent use", func() {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

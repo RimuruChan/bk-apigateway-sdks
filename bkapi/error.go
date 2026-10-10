@@ -12,6 +12,7 @@
 package bkapi
 
 import (
+	"bytes"
 	"cmp"
 	"encoding/json"
 	"fmt"
@@ -39,11 +40,38 @@ func (e *Error) Error() string {
 		e.StatusCode, e.Code, e.Message, e.RequestID)
 }
 
+// errorBodyTransport reads the body of a non-2xx response into memory.
+//
+// gentleman runs the plugins of a client under a lock shared by all its requests, so checkStatus must not
+// read a slow body itself. Reading it here keeps the request timeout and cancellation.
+type errorBodyTransport struct {
+	base http.RoundTripper
+}
+
+func (t *errorBodyTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	res, err := t.base.RoundTrip(req)
+	if err != nil || isSuccess(res.StatusCode) || res.Body == nil {
+		return res, err
+	}
+
+	body, err := io.ReadAll(res.Body)
+	_ = res.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+	res.Body = io.NopCloser(bytes.NewReader(body))
+	return res, nil
+}
+
+func isSuccess(status int) bool {
+	return status >= 200 && status < 300
+}
+
 // checkStatus returns the plugin that turns a non-2xx response into an *Error.
 func checkStatus() plugin.Plugin {
 	return plugin.NewResponsePlugin(func(ctx *context.Context, h context.Handler) {
 		res := ctx.Response
-		if res.StatusCode >= 200 && res.StatusCode < 300 {
+		if isSuccess(res.StatusCode) {
 			h.Next(ctx)
 			return
 		}

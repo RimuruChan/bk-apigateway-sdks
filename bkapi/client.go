@@ -80,17 +80,17 @@ func New(config Config) (*gentleman.Client, error) {
 		return nil, err
 	}
 
+	base := cmp.Or[http.RoundTripper](config.Transport, gentleman.DefaultTransport)
+
 	client := gentleman.New().
 		URL(strings.TrimSuffix(config.Endpoint, "/")).
 		Use(headers.Set("X-Bkapi-Authorization", string(authorization))).
 		Use(timeout.Request(cmp.Or(config.Timeout, defaultTimeout))).
-		Use(checkStatus()).
-		Use(logging(cmp.Or(config.Logger, slog.Default())))
+		Use(transport.Set(&errorBodyTransport{base: base})).
+		Use(logging(cmp.Or(config.Logger, slog.Default()))).
+		Use(checkStatus())
 	if config.TenantID != "" {
 		client.Use(headers.Set("X-Bk-Tenant-Id", config.TenantID))
-	}
-	if config.Transport != nil {
-		client.Use(transport.Set(config.Transport))
 	}
 	return client, nil
 }
@@ -104,45 +104,48 @@ func WithContext(ctx stdcontext.Context) plugin.Plugin {
 
 const startKey = "bkapi.start"
 
-// logging returns the plugin that logs the requests without the headers and bodies, which may contain secrets.
-// The status of a request that got no response is 0.
+// logging returns the plugin that logs the responses, at debug level for 2xx, warn for 4xx and error for others.
+// It must run before checkStatus, which stops the response phase of a non-2xx response.
+//
+// The errors without a response, such as network errors and timeouts, are only returned to the caller, who knows
+// the context to log them. The headers, query and bodies are not logged, as they may contain secrets.
 func logging(logger *slog.Logger) plugin.Plugin {
-	log := func(ctx *context.Context) {
-		start, _ := ctx.Get(startKey).(time.Time)
-		res := ctx.Response
-		level := slog.LevelDebug
-		attrs := []slog.Attr{
-			slog.String("method", ctx.Request.Method),
-			slog.String("path", ctx.Request.URL.Path),
-			slog.Int("status", res.StatusCode),
-			slog.String("request_id", res.Header.Get("X-Bkapi-Request-Id")),
-			slog.Duration("duration", time.Since(start)),
-		}
-		if ctx.Error != nil {
-			level = slog.LevelError
-			if res.StatusCode >= 400 && res.StatusCode < 500 {
-				level = slog.LevelWarn
-			}
-			attrs = append(attrs, slog.Any("error", ctx.Error))
-		}
-		logger.LogAttrs(ctx.Request.Context(), level, "bkapi request", attrs...)
-	}
-
 	p := plugin.New()
 	p.SetHandlers(plugin.Handlers{
 		"request": func(ctx *context.Context, h context.Handler) {
 			ctx.Set(startKey, time.Now())
 			h.Next(ctx)
 		},
-		// checkStatus runs before, so the failed requests skip the response phase and are logged in the error phase
 		"response": func(ctx *context.Context, h context.Handler) {
-			log(ctx)
-			h.Next(ctx)
-		},
-		"error": func(ctx *context.Context, h context.Handler) {
-			log(ctx)
+			logResponse(logger, ctx)
 			h.Next(ctx)
 		},
 	})
 	return p
+}
+
+func logResponse(logger *slog.Logger, ctx *context.Context) {
+	start, _ := ctx.Get(startKey).(time.Time)
+	res := ctx.Response
+	attrs := []slog.Attr{
+		slog.String("method", ctx.Request.Method),
+		slog.String("path", ctx.Request.URL.Path),
+		slog.Int("status", res.StatusCode),
+		slog.String("request_id", res.Header.Get("X-Bkapi-Request-Id")),
+		slog.Duration("duration", time.Since(start)),
+	}
+
+	level := slog.LevelDebug
+	if !isSuccess(res.StatusCode) {
+		level = slog.LevelError
+		if res.StatusCode >= 400 && res.StatusCode < 500 {
+			level = slog.LevelWarn
+		}
+		// the gateway sets the error in the headers, and the body is left to checkStatus
+		attrs = append(attrs,
+			slog.String("error_code", res.Header.Get("X-Bkapi-Error-Code")),
+			slog.String("error_message", res.Header.Get("X-Bkapi-Error-Message")),
+		)
+	}
+	logger.LogAttrs(ctx.Request.Context(), level, "bkapi request", attrs...)
 }
