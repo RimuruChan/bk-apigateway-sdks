@@ -25,7 +25,7 @@ import (
 
 // PublicKeyProvider is the interface for public key provider.
 type PublicKeyProvider interface {
-	ProvidePublicKey(apiName string) (string, error)
+	ProvidePublicKey(gatewayName string) (string, error)
 }
 
 // PublicKeySimpleProvider provides some predefined public keys.
@@ -34,8 +34,8 @@ type PublicKeySimpleProvider struct {
 }
 
 // ProvidePublicKey returns public key for given api name.
-func (p *PublicKeySimpleProvider) ProvidePublicKey(apiName string) (string, error) {
-	return p.publicKeys[apiName], nil
+func (p *PublicKeySimpleProvider) ProvidePublicKey(gatewayName string) (string, error) {
+	return p.publicKeys[gatewayName], nil
 }
 
 // NewPublicKeySimpleProvider creates a simple public key provider.
@@ -51,29 +51,29 @@ type PublicKeyMemoryCache struct {
 }
 
 // ProvidePublicKey gets public key from cache.
-func (c *PublicKeyMemoryCache) ProvidePublicKey(apiName string) (string, error) {
-	return c.cache.GetString(context.Background(), cache.NewStringKey(apiName))
+func (c *PublicKeyMemoryCache) ProvidePublicKey(gatewayName string) (string, error) {
+	return c.cache.GetString(context.Background(), cache.NewStringKey(gatewayName))
 }
 
 // NewPublicKeyMemoryCache creates a memory cache for public key.
 func NewPublicKeyMemoryCache(
 	config bkapi.Config,
 	expiration time.Duration,
-	clientFactory func(apiName string, config bkapi.Config) (*Manager, error),
+	clientFactory func(gatewayName string, config bkapi.Config) (*Manager, error),
 ) *PublicKeyMemoryCache {
 	return &PublicKeyMemoryCache{
 		cache: memory.NewCache(
 			"public-key",
 			func(ctx context.Context, key cache.Key) (any, error) {
-				apiName := key.Key()
-				manager, err := clientFactory(apiName, config)
+				gatewayName := key.Key()
+				manager, err := clientFactory(gatewayName, config)
 				if err != nil {
-					return nil, errors.WithMessagef(err, "failed to create manager for %s", apiName)
+					return nil, errors.WithMessagef(err, "failed to create manager for %s", gatewayName)
 				}
 
 				publicKey, err := manager.GetPublicKeyString(ctx)
 				if err != nil {
-					return nil, errors.WithMessagef(err, "failed to get public key for %s", apiName)
+					return nil, errors.WithMessagef(err, "failed to get public key for %s", gatewayName)
 				}
 
 				return publicKey, nil

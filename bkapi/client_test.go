@@ -14,6 +14,7 @@ package bkapi_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -152,7 +153,20 @@ var _ = Describe("Client", func() {
 				Message:    "invalid version",
 				RequestID:  "request-1",
 			}),
-		Entry("from the headers of the gateway", 403,
+		Entry("with the system, details and data", 403,
+			http.Header{"X-Request-Id": {"request-3"}},
+			`{"error": {"code": "IAM_NO_PERMISSION", "message": "no permission", "system": "bk-job",
+				"details": [{"code": "ACTION_DENIED", "message": "denied"}], "data": {"system": "bk_job"}}}`,
+			bkapi.Error{
+				StatusCode: 403,
+				Code:       "IAM_NO_PERMISSION",
+				Message:    "no permission",
+				System:     "bk-job",
+				Details:    json.RawMessage(`[{"code": "ACTION_DENIED", "message": "denied"}]`),
+				Data:       json.RawMessage(`{"system": "bk_job"}`),
+				RequestID:  "request-3",
+			}),
+		Entry("from the legacy body of the gateway", 403,
 			http.Header{
 				"X-Bkapi-Request-Id":    {"request-2"},
 				"X-Bkapi-Error-Code":    {"1640301"},
@@ -161,10 +175,21 @@ var _ = Describe("Client", func() {
 			`{"code": 1640301, "code_name": "APP_NO_PERMISSION", "message": "App has no permission"}`,
 			bkapi.Error{
 				StatusCode: 403,
-				Code:       "1640301",
-				Message:    "App has no permission to the resource",
+				Code:       "APP_NO_PERMISSION",
+				Message:    "App has no permission",
 				RequestID:  "request-2",
 			}),
+		Entry("from the legacy body with a numeric code", 400,
+			nil,
+			`{"result": false, "code": 40000, "message": "invalid params", "data": null}`,
+			bkapi.Error{StatusCode: 400, Code: "40000", Message: "invalid params"}),
+		Entry("from the headers of the gateway", 401,
+			http.Header{
+				"X-Bkapi-Error-Code":    {"1640001"},
+				"X-Bkapi-Error-Message": {"App authentication failed"},
+			},
+			``,
+			bkapi.Error{StatusCode: 401, Code: "1640001", Message: "App authentication failed"}),
 		Entry("from the status", 502,
 			nil,
 			`<html>502 Bad Gateway</html>`,
@@ -299,6 +324,23 @@ var _ = Describe("Client", func() {
 		_, err := c.Get().Send()
 		Expect(err).To(HaveOccurred())
 		Expect(logs.String()).To(ContainSubstring("error_code=APP_NO_PERMISSION"))
+	})
+
+	It("should log the details of the error and the traceparent", func() {
+		var logs bytes.Buffer
+		c := newClient(bkapi.Config{
+			Endpoint: serve(400, nil, `{"error": {"code": "INVALID_ARGUMENT", "message": "invalid",
+				"details": [{"code": "REQUIRED", "message": "name is required"}]}}`),
+			Logger: slog.New(slog.NewTextHandler(&logs, nil)),
+		})
+		_, err := c.Get().SetHeader("traceparent", "00-trace-span-01").Send()
+
+		Expect(err).To(MatchError(ContainSubstring(`details=[{"code": "REQUIRED", "message": "name is required"}]`)))
+		Expect(logs.String()).To(And(
+			ContainSubstring("error_code=INVALID_ARGUMENT"),
+			ContainSubstring("name is required"),
+			ContainSubstring("traceparent=00-trace-span-01"),
+		))
 	})
 
 	It("should not log the errors without a response", func() {

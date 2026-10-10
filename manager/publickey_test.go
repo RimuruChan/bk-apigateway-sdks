@@ -33,9 +33,9 @@ var _ = Describe("Publickey", func() {
 		config = bkapi.Config{Endpoint: "http://example.com", Transport: gock.NewTransport()}
 		provider = manager.NewPublicKeyMemoryCache(
 			config, time.Hour,
-			func(apiName string, config bkapi.Config) (*manager.Manager, error) {
+			func(gatewayName string, config bkapi.Config) (*manager.Manager, error) {
 				return manager.NewManager(
-					apiName,
+					gatewayName,
 					config,
 					nil,
 				)

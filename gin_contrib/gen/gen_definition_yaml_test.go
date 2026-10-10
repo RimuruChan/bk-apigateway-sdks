@@ -127,19 +127,20 @@ func TestGenDefinitionConfigWithMcpServer(t *testing.T) {
 			EnableMcpServers: true,
 			McpServerConfigs: []*model.McpServer{
 				{
-					Name:                      "mcp-server-1",
-					Title:                     "MCP服务1",
-					Description:               "mcp-server-1",
-					IsPublic:                  false,
-					ProtocolType:              model.MCPServerProtocolSSE,
-					Status:                    1,
-					Labels:                    []string{"label1", "label2"},
-					TargetAppCodes:            []string{"app1", "app2"},
-					ResourceNames:             []string{"update_product_set"},
-					ToolNames:                 []string{"update_product"},
-					Oauth2PublicClientEnabled: false,
-					RawResponseEnabled:        false,
-					CategoryNames:             []string{"Official", "Automation"},
+					Name:                        "mcp-server-1",
+					Title:                       "MCP服务1",
+					Description:                 "mcp-server-1",
+					IsPublic:                    false,
+					ProtocolType:                model.MCPServerProtocolSSE,
+					Status:                      1,
+					Labels:                      []string{"label1", "label2"},
+					TargetAppCodes:              []string{"app1", "app2"},
+					ResourceNames:               []string{"update_product_set"},
+					ToolNames:                   []string{"update_product"},
+					Oauth2PublicClientEnabled:   true,
+					Oauth2PersonalClientEnabled: true,
+					RawResponseEnabled:          false,
+					CategoryNames:               []string{"Official", "Automation"},
 				},
 			},
 		},
@@ -156,5 +157,23 @@ func TestGenDefinitionConfigWithMcpServer(t *testing.T) {
 	}
 	// 生成定义配置
 	definitionConfig := GenDefinitionYaml(config, "../example/docs/swagger.json", router.New())
-	t.Log(definitionConfig)
+	var parsed struct {
+		Stages []struct {
+			McpServers []map[string]any `yaml:"mcp_servers"`
+		} `yaml:"stages"`
+	}
+	if err := yaml.Unmarshal([]byte(definitionConfig), &parsed); err != nil {
+		t.Fatal(err)
+	}
+	if len(parsed.Stages) != 1 || len(parsed.Stages[0].McpServers) != 1 {
+		t.Fatalf("invalid mcp servers: %s", definitionConfig)
+	}
+	server := parsed.Stages[0].McpServers[0]
+	if server["oauth2_public_client_enabled"] != true || server["oauth2_personal_client_enabled"] != true {
+		t.Errorf("invalid oauth2 flags of the mcp server: %v", server)
+	}
+	if !reflect.DeepEqual(server["tool_names"], []any{"update_product"}) ||
+		!reflect.DeepEqual(server["category_names"], []any{"Official", "Automation"}) {
+		t.Errorf("invalid tool or category names of the mcp server: %v", server)
+	}
 }

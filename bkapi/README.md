@@ -135,13 +135,38 @@ client, err := bkapi.New(bkapi.Config{
 var apiErr *bkapi.Error
 if errors.As(err, &apiErr) {
 	log.Println(apiErr.StatusCode) // HTTP 状态码，如 400
-	log.Println(apiErr.Code)       // 错误码，如 INVALID_ARGUMENT
-	log.Println(apiErr.Message)    // 错误信息
+	log.Println(apiErr.Code)       // 错误码，如 INVALID_ARGUMENT，可用于代码中的逻辑判断
+	log.Println(apiErr.Message)    // 给用户看的错误信息
+	log.Println(apiErr.System)     // 抛出错误的系统，可能为空
 	log.Println(apiErr.RequestID)  // 请求 ID，可用于在网关中查询请求日志
+
+	// Details 和 Data 是原始 JSON，没有内容时为 nil，按需解析
+	var details []map[string]any
+	_ = json.Unmarshal(apiErr.Details, &details)
 }
 ```
 
-`Code` 和 `Message` 取自响应体中的 `error` 字段；请求被网关拒绝时（如认证失败、无权限），取自 `X-Bkapi-Error-Code` 和 `X-Bkapi-Error-Message` 响应头。响应体不是 JSON 时，使用响应头和状态码。
+错误按蓝鲸的错误响应规范解析，响应体形如：
+
+```json
+{
+  "error": {
+    "code": "INVALID_ARGUMENT",
+    "message": "参数校验失败",
+    "system": "bk-apigateway",
+    "details": [{"code": "REQUIRED", "message": "name: 该字段是必填项"}],
+    "data": {}
+  }
+}
+```
+
+`details` 是给开发排查问题用的子错误列表，`data` 是供调用方处理该错误的数据，如 `IAM_NO_PERMISSION` 时的权限申请信息。
+
+响应体不符合规范时依次使用：
+
+- 旧格式响应体中的 `code_name`、`code` 和 `message`，如请求被网关拒绝（认证失败、无权限）时，或尚未迁移到新规范的接口。
+- 网关设置的 `X-Bkapi-Error-Code` 和 `X-Bkapi-Error-Message` 响应头。
+- 状态码对应的文本，如 `Bad Gateway`。
 
 2. 网络错误、超时和取消等错误会原样返回，可以用 `errors.Is` 判断：
 
@@ -153,7 +178,7 @@ if errors.Is(err, context.DeadlineExceeded) {
 
 ## 日志
 
-每个响应输出一条日志，包含请求方法、路径、状态码、request_id 和耗时，非 2xx 响应还包含网关的错误码和错误信息，不包含请求头、查询参数和请求体。2xx 为 `DEBUG` 级别，4xx 为 `WARN`，其他为 `ERROR`。
+每个响应输出一条日志，包含请求方法、路径、状态码、request_id 和耗时，非 2xx 响应还包含错误码、错误信息和 details，请求带有 `traceparent` 头时也会记录。日志不包含请求头、查询参数和请求体。2xx 为 `DEBUG` 级别，4xx 为 `WARN`，其他为 `ERROR`。
 
 网络错误、超时和取消等没有响应的错误只返回给调用方，不输出日志，由调用方结合业务上下文记录。
 

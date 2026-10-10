@@ -26,39 +26,37 @@ import (
 
 // SyncGinGateway syncs the gateway defined in definition.yaml and resources.yaml under baseDir to bk-apigateway,
 // creates a resource version and releases it. deleteResources deletes the resources not in resources.yaml.
-func SyncGinGateway(
-	ctx context.Context,
-	baseDir, gatewayName string,
-	config *model.APIConfig,
-	deleteResources bool,
-) error {
+//
+// It is for the sync command of an app, and exits the process if any step fails.
+func SyncGinGateway(baseDir, gatewayName string, config *model.APIConfig, deleteResources bool) {
+	ctx := context.Background()
 	defaultManager, err := manager.NewManagerFrom(
 		gatewayName,
 		manager.ConfigFromEnv(),
 		filepath.Join(baseDir, "definition.yaml"),
 	)
 	if err != nil {
-		return fmt.Errorf("create manager: %w", err)
+		log.Fatalf("create manager: %v", err)
 	}
 
 	// 同步网关基础信息
 	info, err := defaultManager.SyncBasicInfo(ctx)
 	if err != nil {
-		return fmt.Errorf("sync gateway basic info: %w", err)
+		log.Fatalf("sync gateway basic info: %v", err)
 	}
 	log.Printf("syncing gateway basic info success, info:%v\n", info)
 
 	// 同步网关环境信息
 	result, err := defaultManager.SyncStagesConfig(ctx)
 	if err != nil {
-		return fmt.Errorf("sync gateway stages: %w", err)
+		log.Fatalf("sync gateway stages: %v", err)
 	}
 	log.Printf("syncing gateway stage config success, result:%v\n", result)
 
 	// 同步网关资源信息
 	resourceFile, err := os.ReadFile(filepath.Join(baseDir, "resources.yaml"))
 	if err != nil {
-		return fmt.Errorf("read resources file: %w", err)
+		log.Fatalf("read resources file: %v", err)
 	}
 	log.Printf("call sync_apigw_resources with resources:%s\n", resourceFile)
 
@@ -71,20 +69,20 @@ func SyncGinGateway(
 	}
 	result, err = defaultManager.SyncResourcesConfig(ctx, syncResourcesArgs)
 	if err != nil {
-		return fmt.Errorf("sync gateway resources: %w", err)
+		log.Fatalf("sync gateway resources: %v", err)
 	}
 	log.Printf("syncing gateway resource config success, result:%v\n", result)
 
 	// 同步授权信息
 	if err := defaultManager.GrantPermissions(ctx); err != nil {
-		return fmt.Errorf("grant permissions: %w", err)
+		log.Fatalf("grant permissions: %v", err)
 	}
 	log.Printf("granting gateway permissions success\n")
 
 	// 同步资源文档信息
 	if config.ResourceDocs.BaseDir != "" {
 		if err := defaultManager.SyncResourceDocByArchive(ctx); err != nil {
-			return fmt.Errorf("sync resource docs: %w", err)
+			log.Fatalf("sync resource docs: %v", err)
 		}
 		log.Printf("syncing gateway resource doc success\n")
 	}
@@ -98,7 +96,7 @@ func SyncGinGateway(
 	}
 	exists, err := defaultManager.ResourceVersionExists(ctx, newVersion)
 	if err != nil {
-		return fmt.Errorf("check resource version %s: %w", newVersion, err)
+		log.Fatalf("check resource version %s: %v", newVersion, err)
 	}
 	if exists {
 		publicVersion := strings.SplitN(newVersion, "+", 2)[0]
@@ -106,14 +104,14 @@ func SyncGinGateway(
 	}
 	result, err = defaultManager.CreateResourceVersion(ctx, newVersion, config.Release.Comment)
 	if err != nil {
-		return fmt.Errorf("create resource version %s: %w", newVersion, err)
+		log.Fatalf("create resource version %s: %v", newVersion, err)
 	}
 	log.Printf("create gateway resource version success, result:%v\n", result)
 	// 发布资源版本
 	if !config.Release.NoPub {
 		result, err = defaultManager.Release(ctx, newVersion, config.Release.Comment)
 		if err != nil {
-			return fmt.Errorf("release resource version %s: %w", newVersion, err)
+			log.Fatalf("release resource version %s: %v", newVersion, err)
 		}
 		log.Printf("release gateway resource version success, result:%v\n", result)
 	}
@@ -122,9 +120,8 @@ func SyncGinGateway(
 		// 同步网关stage MCP Server 配置
 		result, err = defaultManager.SyncStageMcpConfig(ctx)
 		if err != nil {
-			return fmt.Errorf("sync stage mcp servers: %w", err)
+			log.Fatalf("sync stage mcp servers: %v", err)
 		}
 		log.Printf("syncing stage mcp servers success, result:%v\n", result)
 	}
-	return nil
 }

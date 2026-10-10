@@ -131,7 +131,7 @@ func logResponse(logger *slog.Logger, ctx *context.Context) {
 		slog.String("method", ctx.Request.Method),
 		slog.String("path", ctx.Request.URL.Path),
 		slog.Int("status", res.StatusCode),
-		slog.String("request_id", res.Header.Get("X-Bkapi-Request-Id")),
+		slog.String("request_id", cmp.Or(res.Header.Get("X-Bkapi-Request-Id"), res.Header.Get("X-Request-Id"))),
 		slog.Duration("duration", time.Since(start)),
 	}
 
@@ -141,11 +141,18 @@ func logResponse(logger *slog.Logger, ctx *context.Context) {
 		if res.StatusCode >= 400 && res.StatusCode < 500 {
 			level = slog.LevelWarn
 		}
-		// the gateway sets the error in the headers, and the body is left to checkStatus
+		// the body is already in memory, see errorBodyTransport
+		apiErr := newError(res, readBody(res))
 		attrs = append(attrs,
-			slog.String("error_code", res.Header.Get("X-Bkapi-Error-Code")),
-			slog.String("error_message", res.Header.Get("X-Bkapi-Error-Message")),
+			slog.String("error_code", apiErr.Code),
+			slog.String("error_message", apiErr.Message),
 		)
+		if len(apiErr.Details) > 0 {
+			attrs = append(attrs, slog.String("error_details", string(apiErr.Details)))
+		}
+	}
+	if traceparent := ctx.Request.Header.Get("Traceparent"); traceparent != "" {
+		attrs = append(attrs, slog.String("traceparent", traceparent))
 	}
 	logger.LogAttrs(ctx.Request.Context(), level, "bkapi request", attrs...)
 }

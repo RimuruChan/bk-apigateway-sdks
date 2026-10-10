@@ -76,6 +76,9 @@ stages:
         {{- if .Oauth2PublicClientEnabled}}
         oauth2_public_client_enabled: {{.Oauth2PublicClientEnabled}}
         {{- end}}
+        {{- if .Oauth2PersonalClientEnabled}}
+        oauth2_personal_client_enabled: {{.Oauth2PersonalClientEnabled}}
+        {{- end}}
         {{- if .RawResponseEnabled}}
         raw_response_enabled: {{.RawResponseEnabled}}
         {{- end}}

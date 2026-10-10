@@ -65,7 +65,7 @@ var _ = Describe("Jwt", func() {
 		claims, err := parser.Parse(token)
 		Expect(err).To(BeNil())
 
-		Expect(claims.ApiName).To(Equal("testing"))
+		Expect(claims.GatewayName).To(Equal("testing"))
 		Expect(claims.App).To(Equal(jwtClaims.App))
 		Expect(claims.User).To(Equal(jwtClaims.User))
 	})

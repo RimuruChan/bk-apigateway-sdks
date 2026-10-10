@@ -14,20 +14,18 @@ package gen
 import (
 	"archive/zip"
 	"bytes"
-	"context"
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 	"sync"
 	"testing"
 
-	"github.com/TencentBlueKing/bk-apigateway-sdks/v2/bkapi"
 	"github.com/TencentBlueKing/bk-apigateway-sdks/v2/gin_contrib/example/router"
 	"github.com/TencentBlueKing/bk-apigateway-sdks/v2/gin_contrib/model"
 )
@@ -206,9 +204,7 @@ func TestSyncGinGatewayWithV2Apis(t *testing.T) {
 			gateway := &mockV2Gateway{versionExists: c.versionExists}
 			baseDir, config := setupSyncGinGateway(t, gateway)
 
-			if err := SyncGinGateway(context.Background(), baseDir, "testing", config, true); err != nil {
-				t.Fatal(err)
-			}
+			SyncGinGateway(baseDir, "testing", config, true)
 
 			resources := gateway.find(t, http.MethodPost, "/resources/")[0].Body
 			if resources["doc_language"] != "zh" || resources["language"] != nil || resources["delete"] != true {
@@ -241,7 +237,21 @@ func TestSyncGinGatewayWithV2Apis(t *testing.T) {
 				t.Errorf("unexpected release body: %v", release)
 			}
 
-			gateway.find(t, http.MethodPost, "/stages/prod/mcp-servers/")
+			mcp := gateway.find(t, http.MethodPost, "/stages/prod/mcp-servers/")[0].Body
+			servers, _ := mcp["mcp_servers"].([]any)
+			if len(servers) != 1 {
+				t.Fatalf("unexpected mcp servers sync body: %v", mcp)
+			}
+			want := map[string]any{
+				"name":                           "mcp",
+				"resource_names":                 []any{"get_pet"},
+				"tool_names":                     []any{"fetch_pet"},
+				"category_names":                 []any{"Official"},
+				"oauth2_personal_client_enabled": true,
+			}
+			if !reflect.DeepEqual(servers[0], want) {
+				t.Errorf("mcp server = %v, want %v", servers[0], want)
+			}
 		})
 	}
 }
@@ -272,6 +282,10 @@ func setupSyncGinGateway(t *testing.T, gateway *mockV2Gateway) (string, *model.A
 		"  - name: prod",
 		"    mcp_servers:",
 		"      - name: mcp",
+		"        resource_names: [get_pet]",
+		"        tool_names: [fetch_pet]",
+		"        category_names: [Official]",
+		"        oauth2_personal_client_enabled: true",
 		"grant_permissions:",
 		"  - target_app_code: app1",
 		"    grant_dimension: gateway",
@@ -290,17 +304,5 @@ func setupSyncGinGateway(t *testing.T, gateway *mockV2Gateway) (string, *model.A
 		Release:      model.ReleaseConfig{Version: "1.0.0+prod", Comment: "release comment"},
 		Stage:        &model.StageConfig{Name: "prod", EnableMcpServers: true},
 		ResourceDocs: model.ResourceDocConfig{BaseDir: docsDir, Language: "zh"},
-	}
-}
-
-func TestSyncGinGatewayError(t *testing.T) {
-	baseDir, config := setupSyncGinGateway(t, &mockV2Gateway{})
-
-	// the mock gateway responds NOT_FOUND to the gateways other than testing
-	err := SyncGinGateway(context.Background(), baseDir, "unknown", config, true)
-
-	var apiErr *bkapi.Error
-	if !errors.As(err, &apiErr) || apiErr.Code != "NOT_FOUND" {
-		t.Fatalf("error = %v, want NOT_FOUND", err)
 	}
 }

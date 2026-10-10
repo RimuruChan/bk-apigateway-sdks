@@ -134,7 +134,7 @@ claims, err := parser.Parse(r.Header.Get("X-Bkapi-Jwt"))
 if err != nil {
 	// 校验失败，拒绝请求
 }
-log.Println(claims.ApiName, claims.App.AppCode, claims.User.Username)
+log.Println(claims.GatewayName, claims.App.AppCode, claims.User.Username)
 ```
 
 `claims.App`、`claims.User` 在 JWT 不包含对应信息时为 `nil`，使用前需要判断。

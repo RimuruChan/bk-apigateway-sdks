@@ -49,6 +49,9 @@ type Manager struct {
 }
 
 // send sends the request to bk-apigateway, and returns the data of the response, which is like {"data": ...}.
+//
+// A non-2xx response, whose body is like {"error": ...}, never reaches the decoding below: the client created
+// by bkapi.New turns it into a *bkapi.Error returned by Send.
 func send[T any](ctx context.Context, req *gentleman.Request) (T, error) {
 	var body struct {
 		Data T `json:"data"`
