@@ -154,7 +154,7 @@ func (g *mockV2Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		g.reply(w, http.StatusOK, map[string]any{
 			"added": []any{}, "updated": []any{}, "deleted": []any{},
 		})
-	case sub == "permissions/grant/", sub == "resource-docs/":
+	case sub == "permissions/grant/", sub == "resource-docs/", sub == "related-apps/":
 		g.reply(w, http.StatusCreated, nil)
 	case sub == "resource_versions/" && r.Method == http.MethodGet:
 		count := 0
@@ -209,6 +209,11 @@ func TestSyncGinGatewayWithV2Apis(t *testing.T) {
 			resources := gateway.find(t, http.MethodPost, "/resources/")[0].Body
 			if resources["doc_language"] != "zh" || resources["language"] != nil || resources["delete"] != true {
 				t.Errorf("unexpected resources sync body: %v", resources)
+			}
+
+			related := gateway.find(t, http.MethodPost, "/related-apps/")[0].Body
+			if !reflect.DeepEqual(related["related_app_codes"], []any{"app1", "app2"}) {
+				t.Errorf("unexpected related apps body: %v", related)
 			}
 
 			grant := gateway.find(t, http.MethodPost, "/permissions/grant/")[0].Body
@@ -286,6 +291,9 @@ func setupSyncGinGateway(t *testing.T, gateway *mockV2Gateway) (string, *model.A
 		"        tool_names: [fetch_pet]",
 		"        category_names: [Official]",
 		"        oauth2_personal_client_enabled: true",
+		"related_apps:",
+		"  - app1",
+		"  - app2",
 		"grant_permissions:",
 		"  - target_app_code: app1",
 		"    grant_dimension: gateway",

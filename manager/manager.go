@@ -167,6 +167,7 @@ func (m *Manager) SyncStagesConfig(ctx context.Context) (map[string]any, error) 
 }
 
 // SyncStageMcpConfig sync the mcp servers of the stages from definition to apigw.
+// The stages without mcp_servers are skipped, as the api requires it.
 func (m *Manager) SyncStageMcpConfig(ctx context.Context) (map[string]any, error) {
 	stages, err := m.definition.GetArray(stagesNamespace)
 	if err != nil {
@@ -174,6 +175,9 @@ func (m *Manager) SyncStageMcpConfig(ctx context.Context) (map[string]any, error
 	}
 	results := make(map[string]any, len(stages))
 	for _, stage := range stages {
+		if _, ok := stage["mcp_servers"]; !ok {
+			continue
+		}
 		name := fmt.Sprint(stage["name"])
 		result, err := send[[]map[string]any](ctx, m.client.Post().
 			AddPath("/api/v2/sync/gateways/:gateway_name/stages/:stage_name/mcp-servers/").

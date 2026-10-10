@@ -33,8 +33,15 @@ func TestGenDefinitionConfig(t *testing.T) {
 			Description:   "示例网关",
 			DescriptionEn: "Example Gateway",
 			IsPublic:      true,
-			APIType:       "public",
+			IsOfficial:    true,
 			Maintainers:   []string{"user1", "user2"},
+			Kind:          "ai",
+			DataPlanes:    []string{"default"},
+			DocMaintainers: &model.DocMaintainers{
+				Type:               "service_account",
+				ServiceAccountName: "helper",
+				ServiceAccountLink: "https://example.com",
+			},
 		},
 		Stage: &model.StageConfig{
 			Name:           "prod",
@@ -65,7 +72,7 @@ func TestGenDefinitionConfig(t *testing.T) {
 				"app2": {"res1", "res2"},
 			},
 		},
-		RelatedApps: []string{"myapp"},
+		RelatedApps: []string{"myapp", "otherapp"},
 		ResourceDocs: model.ResourceDocConfig{
 			BaseDir: "/data/docs",
 		},
@@ -73,7 +80,9 @@ func TestGenDefinitionConfig(t *testing.T) {
 	// 生成定义配置
 	definitionConfig := GenDefinitionYaml(config, "../example/docs/swagger.json", router.New())
 	var parsed struct {
+		Gateway     map[string]any   `yaml:"apigateway"`
 		Permissions []map[string]any `yaml:"grant_permissions"`
+		RelatedApps []string         `yaml:"related_apps"`
 	}
 	if err := yaml.Unmarshal([]byte(definitionConfig), &parsed); err != nil {
 		t.Fatal(err)
@@ -84,6 +93,26 @@ func TestGenDefinitionConfig(t *testing.T) {
 	}
 	if !reflect.DeepEqual(parsed.Permissions, expected) {
 		t.Fatalf("invalid v2 permissions: %#v", parsed.Permissions)
+	}
+	if !reflect.DeepEqual(parsed.RelatedApps, []string{"myapp", "otherapp"}) {
+		t.Errorf("invalid related apps: %v", parsed.RelatedApps)
+	}
+	wantGateway := map[string]any{
+		"description":    "示例网关",
+		"description_en": "Example Gateway",
+		"is_public":      true,
+		"is_official":    true,
+		"maintainers":    []any{"user1", "user2"},
+		"kind":           "ai",
+		"data_planes":    []any{"default"},
+		"doc_maintainers": map[string]any{
+			"type":            "service_account",
+			"service_account": map[string]any{"name": "helper", "link": "https://example.com"},
+		},
+	}
+	// api_type is not rendered when it is empty, as the api rejects null
+	if !reflect.DeepEqual(parsed.Gateway, wantGateway) {
+		t.Errorf("gateway = %v, want %v", parsed.Gateway, wantGateway)
 	}
 }
 
@@ -99,7 +128,7 @@ func TestGenDefinitionConfigWithMcpServer(t *testing.T) {
 			Description:   "示例网关",
 			DescriptionEn: "Example Gateway",
 			IsPublic:      true,
-			APIType:       "public",
+			APIType:       "10",
 			Maintainers:   []string{"user1", "user2"},
 		},
 		Stage: &model.StageConfig{

@@ -136,8 +136,15 @@ var _ = Describe("Manager", func() {
 				},
 			})
 
-		result, err := mgr.SyncStageMcpConfig(ctx)
+		result, err := newManager(map[string]any{
+			"stages": []any{
+				map[string]any{"name": "prod", "mcp_servers": []any{map[string]any{"name": "mcp"}}},
+				// the stage without mcp_servers is skipped, otherwise gock fails the unexpected request
+				map[string]any{"name": "test"},
+			},
+		}).SyncStageMcpConfig(ctx)
 		Expect(err).To(BeNil())
+		Expect(result).To(HaveLen(1))
 		Expect(result["prod"]).To(HaveLen(1))
 	})
 
